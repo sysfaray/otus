@@ -133,7 +133,7 @@ def log_parser(lines, config):
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
     l_counts = (
-        counts[0 : config["REPORT_SIZE"]]
+        counts[0:config["REPORT_SIZE"]]
         if config["REPORT_SIZE"] < len(counts)
         else counts
     )
