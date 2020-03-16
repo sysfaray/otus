@@ -67,8 +67,6 @@ def gen_find(filepat, log_dir, report_dir):
 def gen_open(filename):
     if filename.endswith(".gz"):
         yield gzip.open(filename)
-    elif filename.endswith(".bz2"):
-        yield bz2.BZ2File(filename)
     else:
         yield open(filename)
 
@@ -187,7 +185,7 @@ def main(config):
 if __name__ == "__main__":
     conf_file = {}
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", dest="config", action="store")
+    parser.add_argument("--config", dest="config", action="store", default=config)
     args = parser.parse_args()
     if args.config:
         if not os.path.isfile(args.config):
