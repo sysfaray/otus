@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import os
 import gzip
-import bz2
 import re
 import fnmatch
 import json
@@ -23,10 +22,11 @@ log = logging.getLogger(__name__)
 rx_date = re.compile(r"log\-(\d{4})(\d{2})(\d{2}).", re.MULTILINE)
 rx_log_line = re.compile(
     r"\S+\s+(\S+|-)\s+(-|\S+)\s\[(?P<date>.+)\]\s+\"((GET|POST|HEAD|PUT|OPTIONS)\s+(?P<url>.*)"
-    "\s+HTTP/\d+.\d+|0)\"\s+\d+\s+\d+\s+(?P<other>.*)",
+    '\s+HTTP/\d+.\d+|0)"\s+\d+\s+\d+\s+(?P<other>.*)',
     re.MULTILINE,
 )
 LOCAL_CONFIG = {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log"}
+
 
 def check_config(config):
     if config.get("LOG_DIR") and not os.path.isdir(config["LOG_DIR"]):
@@ -35,9 +35,7 @@ def check_config(config):
         raise Exception("Not LOGGING_DIR or bad path")
     elif config.get("REPORT_DIR") and not os.path.isdir(config["REPORT_DIR"]):
         raise Exception("Not REPORT_DIR or bad path")
-    elif config.get("REPORT_SIZE") and not isinstance(
-            config["REPORT_SIZE"], int
-    ):
+    elif config.get("REPORT_SIZE") and not isinstance(config["REPORT_SIZE"], int):
         raise Exception("REPORT_SIZE is not integer")
     else:
         return config
@@ -63,9 +61,12 @@ def check_report(last_date, report_dir):
             if last_date in name:
                 return True
 
+
 def gen_find(filepat, log_dir, report_dir):
     data = []
     for path, dirlist, filelist in os.walk(log_dir):
+        if not filelist:
+            raise StopIteration("No logfiles in log dir %s" % log_dir)
         log.info("View file in log dir %s" % log_dir)
         for name in fnmatch.filter(filelist, filepat):
             data.append(name.encode("utf8"))
@@ -84,13 +85,16 @@ def gen_open(filename):
     else:
         yield open(filename)
 
+
 def gen_cat(sources):
     for s in sources:
         for item in s:
             yield item
 
+
 def median(l):
     return numpy.median(numpy.array(l))
+
 
 def log_parser(lines, config):
     result = {}
@@ -129,7 +133,7 @@ def log_parser(lines, config):
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
     l_counts = (
-        counts[0:config["REPORT_SIZE"]]
+        counts[0 : config["REPORT_SIZE"]]
         if config["REPORT_SIZE"] < len(counts)
         else counts
     )
@@ -158,24 +162,38 @@ def log_parser(lines, config):
 
 def main(config):
     if config.get("LOGGING_DIR"):
-        out_hdlr = logging.StreamHandler(logging.basicConfig(format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S',
-                            filename=os.path.join(config["LOGGING_DIR"], "log_%s.log" % datetime.date.today())))
+        out_hdlr = logging.StreamHandler(
+            logging.basicConfig(
+                format="[%(asctime)s] %(levelname).1s %(message)s",
+                datefmt="%Y.%m.%d %H:%M:%S",
+                filename=os.path.join(
+                    config["LOGGING_DIR"], "log_%s.log" % datetime.date.today()
+                ),
+            )
+        )
         out_hdlr.setLevel(logging.INFO)
         log.addHandler(out_hdlr)
         log.setLevel(logging.INFO)
     else:
         out_hdlr = logging.StreamHandler(sys.stdout)
-        out_hdlr.setFormatter(logging.Formatter('[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S'))
+        out_hdlr.setFormatter(
+            logging.Formatter(
+                "[%(asctime)s] %(levelname).1s %(message)s", datefmt="%Y.%m.%d %H:%M:%S"
+            )
+        )
         out_hdlr.setLevel(logging.INFO)
         log.addHandler(out_hdlr)
         log.setLevel(logging.INFO)
     log.info("Start log parser")
-    filename, date = gen_find("nginx-access-ui.log-*", config["LOG_DIR"], config["REPORT_DIR"])
+    filename, date = gen_find(
+        "nginx-access-ui.log-*", config["LOG_DIR"], config["REPORT_DIR"]
+    )
     logfiles = gen_open(filename)
     loglines = gen_cat(logfiles)
     result = log_parser(loglines, config)
     if not result:
-        result = [{
+        result = [
+            {
                 "url": None,
                 "count": None,
                 "count_perc": None,
@@ -183,8 +201,9 @@ def main(config):
                 "time_perc": None,
                 "time_avg": None,
                 "time_max": None,
-                "time_med": None
-            }]
+                "time_med": None,
+            }
+        ]
     try:
         html = open("report.html")
         report = Template(html.read())
@@ -207,7 +226,7 @@ if __name__ == "__main__":
             raise Exception("Bad config file path")
         ext_config = open(args.ext_config, "r")
         try:
-            conf_file = json.loads(conf_file.read())
+            ext_config = json.loads(ext_config.read())
         except Exception as e:
             raise Exception("Bad config format %s")
         ext_config = {k: v for k, v in ext_config.items() if v is not None}
