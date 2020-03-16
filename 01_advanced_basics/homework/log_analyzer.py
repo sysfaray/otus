@@ -26,7 +26,21 @@ rx_log_line = re.compile(
     "\s+HTTP/\d+.\d+|0)\"\s+\d+\s+\d+\s+(?P<other>.*)",
     re.MULTILINE,
 )
-config = {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log"}
+LOCAL_CONFIG = {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log"}
+
+def check_config(config):
+    if config.get("LOG_DIR") and not os.path.isdir(config["LOG_DIR"]):
+        raise Exception("Not LOG_DIR or bad path")
+    elif config.get("LOGGING_DIR") and not os.path.isdir(config["LOGGING_DIR"]):
+        raise Exception("Not LOGGING_DIR or bad path")
+    elif config.get("REPORT_DIR") and not os.path.isdir(config["REPORT_DIR"]):
+        raise Exception("Not REPORT_DIR or bad path")
+    elif config.get("REPORT_SIZE") and not isinstance(
+            config["REPORT_SIZE"], int
+    ):
+        raise Exception("REPORT_SIZE is not integer")
+    else:
+        return config
 
 
 def get_date(filename):
@@ -185,27 +199,17 @@ def main(config):
 if __name__ == "__main__":
     conf_file = {}
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", dest="config", action="store", default=config)
+    parser.add_argument("--config", dest="ext_config", action="store", default=None)
     args = parser.parse_args()
-    if args.config:
-        if not os.path.isfile(args.config):
+    config = check_config(LOCAL_CONFIG)
+    if args.ext_config:
+        if not os.path.isfile(args.ext_config):
             raise Exception("Bad config file path")
-        conf_file = open(args.config, "r")
+        ext_config = open(args.ext_config, "r")
         try:
             conf_file = json.loads(conf_file.read())
         except Exception as e:
             raise Exception("Bad config format %s")
-        conf_file = {k: v for k, v in conf_file.items() if v is not None}
-        if conf_file.get("LOG_DIR") and not os.path.isdir(conf_file["LOG_DIR"]):
-            raise Exception("Not LOG_DIR or bad path")
-        if conf_file.get("LOGGING_DIR") and not os.path.isdir(conf_file["LOGGING_DIR"]):
-            raise Exception("Not LOGGING_DIR or bad path")
-        if conf_file.get("REPORT_DIR") and not os.path.isdir(conf_file["REPORT_DIR"]):
-            raise Exception("Not REPORT_DIR or bad path")
-        if conf_file.get("REPORT_SIZE") and not isinstance(
-            conf_file["REPORT_SIZE"], int
-        ):
-            raise Exception("REPORT_SIZE is not integer")
-    if conf_file:
-        config.update(conf_file)
+        ext_config = {k: v for k, v in ext_config.items() if v is not None}
+        config.update(ext_config)
     main(config)
