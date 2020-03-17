@@ -98,7 +98,6 @@ def median(l):
 
 
 def log_parser(lines, config):
-    # result = {}
     result = defaultdict(dict)
     logs = []
     request_time_sum = 0
