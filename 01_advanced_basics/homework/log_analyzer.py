@@ -11,6 +11,7 @@ import numpy
 import logging
 import sys
 from string import Template
+from collections import defaultdict
 
 
 # log_format ui_short '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
@@ -97,7 +98,8 @@ def median(l):
 
 
 def log_parser(lines, config):
-    result = {}
+    # result = {}
+    result = defaultdict(dict)
     logs = []
     request_time_sum = 0
     r_size, c_line, s_line = 0, 0, 0
@@ -108,19 +110,12 @@ def log_parser(lines, config):
             for r in rx_log_line.finditer(line):
                 url, request_time = r.group("url"), r.group("other").split()[-1]
                 request_time_sum = float(request_time_sum) + float(request_time)
-                if result:
-                    if result.get(url):
-                        result[url]["request_time"].append(float(request_time))
-                        result[url]["count"] = result[url]["count"] + 1
-                        result[url]["time_sum"] = result[url]["time_sum"] + float(
-                            request_time
-                        )
-                    else:
-                        result[url] = {
-                            "request_time": [float(request_time)],
-                            "count": 1,
-                            "time_sum": float(request_time),
-                        }
+                if result.get(url):
+                    result[url]["request_time"] += [(float(request_time))]
+                    result[url]["count"] = result[url]["count"] + 1
+                    result[url]["time_sum"] = result[url]["time_sum"] + float(
+                        request_time
+                    )
                 else:
                     result[url] = {
                         "request_time": [float(request_time)],
@@ -133,7 +128,7 @@ def log_parser(lines, config):
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
     l_counts = (
-        counts[0:config["REPORT_SIZE"]]
+        counts[0 : config["REPORT_SIZE"]]
         if config["REPORT_SIZE"] < len(counts)
         else counts
     )
