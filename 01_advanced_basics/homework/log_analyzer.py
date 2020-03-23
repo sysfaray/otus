@@ -184,6 +184,7 @@ def log_parser(lines, config):
             if err_line >= p_l:
                 logging.error("Error parsed line %s = value: %s", err_line, p_l)
                 return None, False
+    logging.info("Count error lines %s", err_line)
     counts = sorted(
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
@@ -194,6 +195,7 @@ def log_parser(lines, config):
     )
     for k, v in result.items():
         if r_size == config["REPORT_SIZE"]:
+            logging.info("Results = report size %s", r_size)
             return logs, True
         if round(v["time_sum"], 2) not in l_counts:
             continue
