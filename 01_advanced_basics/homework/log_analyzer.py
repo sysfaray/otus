@@ -33,7 +33,6 @@ def setup_loggger(log_dir):
     Если log_dir указан и есть директория, то формируем имя файла лога
     Если log_dir is None, задаем filename=None, для отображения логов на экране.
     """
-    log_dir = None
     if log_dir and not os.path.isdir(log_dir):
         logging.info("Make log dir %s", log_dir)
         os.makedirs(log_dir)
@@ -181,9 +180,9 @@ def log_parser(lines, config):
         else:
             err_line = err_line + 1
             logging.error("Log line not supported %s", line)
-            if err_line >= p_l:
-                logging.error("Error parsed line %s = value: %s", err_line, p_l)
-                return None, False
+    if err_line >= p_l:
+        logging.error("Error parsed line %s = value: %s", err_line, p_l)
+        return None, False
     logging.info("Count error lines %s", err_line)
     counts = sorted(
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
