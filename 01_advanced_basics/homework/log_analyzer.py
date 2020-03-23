@@ -180,7 +180,7 @@ def log_parser(lines, config):
                     }
         else:
             err_line = err_line + 1
-            logging.error("Logline not supported %s", line)
+            logging.error("Log line not supported %s", line)
             if err_line >= p_l:
                 logging.error("Error parsed line %s = value: %s", err_line, p_l)
                 return None, False
@@ -222,7 +222,7 @@ def main(config):
     :param config: {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log", "LOGGING_DIR": "./logs"}
     :return: report file
     """
-    logging.info("Start log parser")
+    logging.info("Starting log parser")
     filename, date = gen_find(
         "nginx-access-ui.log-*", config["LOG_DIR"], config["REPORT_DIR"]
     )
@@ -244,7 +244,7 @@ def main(config):
                         "time_med": None,
                     }
                 ]
-            logging.info("Start writing report file")
+            logging.info("Starting writing report file report-%s.html",  date)
             try:
                 html = open("report.html")
                 report = Template(html.read())
@@ -254,6 +254,7 @@ def main(config):
                 f.write(report.safe_substitute(table_json=json.dumps(result)))
                 f.close()
                 html.close()
+                logging.info("Report file report-%s.html created", date)
             except Exception as e:
                 raise Exception(logging.exception("Error %s", e))
         else:
