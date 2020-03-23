@@ -120,11 +120,11 @@ def gen_find(filepat, log_dir, report_dir):
     last_date = get_date(data)
     if last_date:
         if check_report(last_date.strftime("%Y.%m.%d"), report_dir):
-            raise StopIteration(
-                "Report %s Already in %s created",
+            logging.exception("Report: report-%s.html already in %s created",
                 last_date.strftime("%Y.%m.%d"),
                 report_dir,
             )
+            raise StopIteration()
         filename = [fn for fn in data if last_date.strftime("%Y%m%d") in fn]
         logging.info("Path: %s, filename: %s", path, filename[0])
         return [os.path.join(path, filename[0]), last_date.strftime("%Y.%m.%d")]
