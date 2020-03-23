@@ -9,17 +9,13 @@ import datetime
 import argparse
 import numpy
 import logging
-import sys
 from string import Template
 from collections import defaultdict
-
 
 # log_format ui_short '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
 #                     '$status $body_bytes_sent "$http_referer" '
 #                     '"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" "$http_X_RB_USER" '
 #                     '$request_time';
-
-log = logging.getLogger(__name__)
 rx_date = re.compile(r"log\-(\d{4})(\d{2})(\d{2}).", re.MULTILINE)
 rx_log_line = re.compile(
     r"\S+\s+(\S+|-)\s+(-|\S+)\s\[(?P<date>.+)\]\s+\"((GET|POST|HEAD|PUT|OPTIONS)\s+(?P<url>.*)"
@@ -29,7 +25,38 @@ rx_log_line = re.compile(
 LOCAL_CONFIG = {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log"}
 
 
+def setup_loggger(log_dir):
+    """
+    :param log_dir: ./logs
+    Данная функция запускает логирование
+    Если log_dir указан, но не такой директории, создаем директорию и формируем имя файла лога
+    Если log_dir указан и есть директория, то формируем имя файла лога
+    Если log_dir is None, задаем filename=None, для отображения логов на экране.
+    """
+    log_dir = None
+    if log_dir and not os.path.isdir(log_dir):
+        logging.info("Make log dir %s", log_dir)
+        os.makedirs(log_dir)
+        filename = os.path.join(log_dir, "log_%s.log" % datetime.date.today())
+    elif log_dir and os.path.isdir(log_dir):
+        filename = os.path.join(log_dir, "log_%s.log" % datetime.date.today())
+    else:
+        filename = None
+    logging.basicConfig(
+        filename=filename,
+        level=logging.INFO,
+        format="[%(asctime)s] %(levelname).1s %(message)s",
+        datefmt="%Y.%m.%d %H:%M:%S",
+    )
+
+
 def check_config(config):
+    """
+    :param config: {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log", "LOGGING_DIR": "./logs"}
+    :return: {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log", "LOGGING_DIR": "./logs"}
+    Функция проверяет корректность конфигурационного файла.
+    Если параметры в конфиге не правильные, то возвращаем ошибку и прекращаем выполнение скрипта.
+    """
     if config.get("LOG_DIR") and not os.path.isdir(config["LOG_DIR"]):
         raise Exception("Not LOG_DIR or bad path")
     elif config.get("LOGGING_DIR") and not os.path.isdir(config["LOGGING_DIR"]):
@@ -43,20 +70,32 @@ def check_config(config):
 
 
 def get_date(filename):
+    """
+    :param filename: ['nginx-access-ui.log-20170630.gz', 'nginx-access-ui.log-20170530.gz]
+    :return: 2017-06-30
+    Функция ищет файл с последней датой в имени файла.
+    """
     date = []
     for name in filename:
         matched = rx_date.search(name)
         if matched:
             y, m, d = map(int, matched.groups())
-            if datetime.date(y, m, d):
+            if datetime.date(y, m, d):  # проверяем что это формат даты
                 date.append(datetime.date(y, m, d))
         else:
-            log.exception("No log file in log dir")
-            raise Exception
-    return max(date)
+            logging.exception("No log file in log dir")
+            break
+    if date:
+        return max(date)
 
 
 def check_report(last_date, report_dir):
+    """
+    :param last_date: '2017.06.30'
+    :param report_dir: './reports'
+    :return: True
+    Проверяем, что отчет существует
+    """
     for path, dirlist, filelist in os.walk(report_dir):
         for name in fnmatch.filter(filelist, "report-*.html"):
             if last_date in name:
@@ -64,20 +103,34 @@ def check_report(last_date, report_dir):
 
 
 def gen_find(filepat, log_dir, report_dir):
+    """
+    :param filepat: 'nginx-access-ui.log-*'
+    :param log_dir: './log'
+    :param report_dir: './reports'
+    :return: ('./log/nginx-access-ui.log-20170630.gz', '2017.06.30') or (None, None)
+    """
+    print(filepat, log_dir, report_dir)
     data = []
     for path, dirlist, filelist in os.walk(log_dir):
         if not filelist:
-            raise StopIteration("No logfiles in log dir %s" % log_dir)
-        log.info("View file in log dir %s" % log_dir)
+            logging.exception("No logfiles in log dir %s", log_dir)
+            break
+        logging.info("View file in log dir %s" % log_dir)
         for name in fnmatch.filter(filelist, filepat):
             data.append(name.encode("utf8"))
     last_date = get_date(data)
     if last_date:
         if check_report(last_date.strftime("%Y.%m.%d"), report_dir):
-            raise StopIteration("Report Already created")
+            raise StopIteration(
+                "Report %s Already in %s created",
+                last_date.strftime("%Y.%m.%d"),
+                report_dir,
+            )
         filename = [fn for fn in data if last_date.strftime("%Y%m%d") in fn]
         logging.info("Path: %s, filename: %s", path, filename[0])
         return [os.path.join(path, filename[0]), last_date.strftime("%Y.%m.%d")]
+    else:
+        return None, None
 
 
 def gen_open(filename):
@@ -98,6 +151,13 @@ def median(l):
 
 
 def log_parser(lines, config):
+    """
+    Функция парсит строки лог файла.
+    Если строка не проходит проверку по регуляркам, выпадает в лог.
+    Если число строк файла больше чем число проверехнных строк, функция возвращает status False,
+    в следствии чего работа скрипта останавливается.
+    """
+    status = True
     result = defaultdict(dict)
     logs = []
     request_time_sum = 0
@@ -121,19 +181,22 @@ def log_parser(lines, config):
                         "count": 1,
                         "time_sum": float(request_time),
                     }
+        else:
+            logging.exception("Logline not supported %s", line)
     if c_line > s_line:
-        raise Exception("Parsed line %s <  %s all lines" % (s_line, c_line))
+        logging.exception("Parsed line %s <  %s all lines" % (s_line, c_line))
+        status = False
     counts = sorted(
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
     l_counts = (
-        counts[0 : config["REPORT_SIZE"]]
+        counts[0: config["REPORT_SIZE"]]
         if config["REPORT_SIZE"] < len(counts)
         else counts
     )
     for k, v in result.items():
         if r_size == config["REPORT_SIZE"]:
-            return logs
+            return logs, status
         if round(v["time_sum"], 2) not in l_counts:
             continue
         logs.append(
@@ -151,62 +214,51 @@ def log_parser(lines, config):
             }
         )
         r_size = r_size + 1
-    return logs
+    return logs, status
 
 
 def main(config):
-    if config.get("LOGGING_DIR"):
-        out_hdlr = logging.StreamHandler(
-            logging.basicConfig(
-                format="[%(asctime)s] %(levelname).1s %(message)s",
-                datefmt="%Y.%m.%d %H:%M:%S",
-                filename=os.path.join(
-                    config["LOGGING_DIR"], "log_%s.log" % datetime.date.today()
-                ),
-            )
-        )
-        out_hdlr.setLevel(logging.INFO)
-        log.addHandler(out_hdlr)
-        log.setLevel(logging.INFO)
-    else:
-        out_hdlr = logging.StreamHandler(sys.stdout)
-        out_hdlr.setFormatter(
-            logging.Formatter(
-                "[%(asctime)s] %(levelname).1s %(message)s", datefmt="%Y.%m.%d %H:%M:%S"
-            )
-        )
-        out_hdlr.setLevel(logging.INFO)
-        log.addHandler(out_hdlr)
-        log.setLevel(logging.INFO)
-    log.info("Start log parser")
+    """
+    :param config: {"REPORT_SIZE": 1000, "REPORT_DIR": "./reports", "LOG_DIR": "./log", "LOGGING_DIR": "./logs"}
+    :return: report file
+    """
+    logging.info("Start log parser")
     filename, date = gen_find(
         "nginx-access-ui.log-*", config["LOG_DIR"], config["REPORT_DIR"]
     )
-    logfiles = gen_open(filename)
-    loglines = gen_cat(logfiles)
-    result = log_parser(loglines, config)
-    if not result:
-        result = [
-            {
-                "url": None,
-                "count": None,
-                "count_perc": None,
-                "time_sum": None,
-                "time_perc": None,
-                "time_avg": None,
-                "time_max": None,
-                "time_med": None,
-            }
-        ]
-    try:
-        html = open("report.html")
-        report = Template(html.read())
-        f = open(os.path.join(config["REPORT_DIR"], "report-%s.html" % date), "w+")
-        f.write(report.safe_substitute(table_json=json.dumps(result)))
-        f.close()
-        html.close()
-    except Exception as e:
-        raise Exception(logging.exception("Error %s" % e))
+    if filename:
+        logfiles = gen_open(filename)
+        loglines = gen_cat(logfiles)
+        result, status = log_parser(loglines, config)
+        if not result:  # если отчет пустой, возвращаем ничего.
+            result = [
+                {
+                    "url": None,
+                    "count": None,
+                    "count_perc": None,
+                    "time_sum": None,
+                    "time_perc": None,
+                    "time_avg": None,
+                    "time_max": None,
+                    "time_med": None,
+                }
+            ]
+        if status:
+            logging.info("Start writing report file")
+            try:
+                html = open("report.html")
+                report = Template(html.read())
+                f = open(
+                    os.path.join(config["REPORT_DIR"], "report-%s.html" % date), "w+"
+                )
+                f.write(report.safe_substitute(table_json=json.dumps(result)))
+                f.close()
+                html.close()
+            except Exception as e:
+                raise Exception(logging.exception("Error %s", e))
+
+    else:
+        logging.exception("No log file of the required format")
 
 
 if __name__ == "__main__":
@@ -222,7 +274,8 @@ if __name__ == "__main__":
         try:
             ext_config = json.loads(ext_config.read())
         except Exception as e:
-            raise Exception("Bad config format %s")
+            raise Exception("Bad config format %s", e)
         ext_config = {k: v for k, v in ext_config.items() if v is not None}
         config.update(ext_config)
+    setup_loggger(config.get("LOGGING_DIR"))
     main(config)
