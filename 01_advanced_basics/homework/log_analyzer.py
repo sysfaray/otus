@@ -33,7 +33,6 @@ def setup_loggger(log_dir):
     Если log_dir указан и есть директория, то формируем имя файла лога
     Если log_dir is None, задаем filename=None, для отображения логов на экране.
     """
-    log_dir = None
     if log_dir and not os.path.isdir(log_dir):
         logging.info("Make log dir %s", log_dir)
         os.makedirs(log_dir)
