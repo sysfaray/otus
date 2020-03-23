@@ -33,6 +33,7 @@ def setup_loggger(log_dir):
     Если log_dir указан и есть директория, то формируем имя файла лога
     Если log_dir is None, задаем filename=None, для отображения логов на экране.
     """
+    log_dir = None
     if log_dir and not os.path.isdir(log_dir):
         logging.info("Make log dir %s", log_dir)
         os.makedirs(log_dir)
@@ -108,7 +109,6 @@ def gen_find(filepat, log_dir, report_dir):
     :param report_dir: './reports'
     :return: ('./log/nginx-access-ui.log-20170630.gz', '2017.06.30') or (None, None)
     """
-    print(filepat, log_dir, report_dir)
     data = []
     for path, dirlist, filelist in os.walk(log_dir):
         if not filelist:
@@ -141,8 +141,7 @@ def gen_open(filename):
 
 def gen_cat(sources):
     for s in sources:
-        for item in s:
-            yield item
+        return [item for item in s]
 
 
 def median(l):
@@ -153,18 +152,17 @@ def log_parser(lines, config):
     """
     Функция парсит строки лог файла.
     Если строка не проходит проверку по регуляркам, выпадает в лог.
-    Если число строк файла больше чем число проверехнных строк, функция возвращает status False,
+    Если число строк которые не удалось распарсить, превышает 2% функция возвращает None, False,
     в следствии чего работа скрипта останавливается.
     """
-    status = True
     result = defaultdict(dict)
     logs = []
     request_time_sum = 0
-    r_size, c_line, s_line = 0, 0, 0
+    r_size, err_line = 0, 0
+    p_l = (len(lines) / 100) * 2
     for line in lines:
-        c_line = c_line + 1
+        line = line.encode("utf-8")
         if rx_log_line.search(line):
-            s_line = s_line + 1
             for r in rx_log_line.finditer(line):
                 url, request_time = r.group("url"), r.group("other").split()[-1]
                 request_time_sum = float(request_time_sum) + float(request_time)
@@ -181,10 +179,11 @@ def log_parser(lines, config):
                         "time_sum": float(request_time),
                     }
         else:
-            logging.exception("Logline not supported %s", line)
-    if c_line > s_line:
-        logging.exception("Parsed line %s <  %s all lines" % (s_line, c_line))
-        status = False
+            err_line = err_line + 1
+            logging.error("Logline not supported %s", line)
+            if err_line >= p_l:
+                logging.error("Error parsed line %s = value: %s", err_line, p_l)
+                return None, False
     counts = sorted(
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
@@ -195,14 +194,14 @@ def log_parser(lines, config):
     )
     for k, v in result.items():
         if r_size == config["REPORT_SIZE"]:
-            return logs, status
+            return logs, True
         if round(v["time_sum"], 2) not in l_counts:
             continue
         logs.append(
             {
                 "url": k,
                 "count": v["count"],
-                "count_perc": round((100.00 / float(c_line)) * v["count"], 3),
+                "count_perc": round((100.00 / float(len(lines))) * v["count"], 3),
                 "time_sum": round(v["time_sum"], 3),
                 "time_perc": round(
                     (100.00 / float(request_time_sum)) * v["time_sum"], 3
@@ -213,7 +212,7 @@ def log_parser(lines, config):
             }
         )
         r_size = r_size + 1
-    return logs, status
+    return logs, True
 
 
 def main(config):
@@ -229,20 +228,20 @@ def main(config):
         logfiles = gen_open(filename)
         loglines = gen_cat(logfiles)
         result, status = log_parser(loglines, config)
-        if not result:  # если отчет пустой, возвращаем ничего.
-            result = [
-                {
-                    "url": None,
-                    "count": None,
-                    "count_perc": None,
-                    "time_sum": None,
-                    "time_perc": None,
-                    "time_avg": None,
-                    "time_max": None,
-                    "time_med": None,
-                }
-            ]
         if status:
+            if not result:  # если отчет пустой, возвращаем ничего.
+                result = [
+                    {
+                        "url": None,
+                        "count": None,
+                        "count_perc": None,
+                        "time_sum": None,
+                        "time_perc": None,
+                        "time_avg": None,
+                        "time_max": None,
+                        "time_med": None,
+                    }
+                ]
             logging.info("Start writing report file")
             try:
                 html = open("report.html")
@@ -255,6 +254,8 @@ def main(config):
                 html.close()
             except Exception as e:
                 raise Exception(logging.exception("Error %s", e))
+        else:
+            logging.exception("More errors in logfile")
 
     else:
         logging.exception("No log file of the required format")
