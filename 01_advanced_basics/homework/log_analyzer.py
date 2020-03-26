@@ -11,6 +11,7 @@ import numpy
 import logging
 from string import Template
 from collections import defaultdict
+from contextlib import contextmanager
 
 # log_format ui_short '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
 #                     '$status $body_bytes_sent "$http_referer" '
@@ -33,14 +34,9 @@ def setup_loggger(log_dir):
     Если log_dir указан и есть директория, то формируем имя файла лога
     Если log_dir is None, задаем filename=None, для отображения логов на экране.
     """
-    if log_dir and not os.path.isdir(log_dir):
-        logging.info("Make log dir %s", log_dir)
-        os.makedirs(log_dir)
+    filename = None
+    if log_dir:
         filename = os.path.join(log_dir, "log_%s.log" % datetime.date.today())
-    elif log_dir and os.path.isdir(log_dir):
-        filename = os.path.join(log_dir, "log_%s.log" % datetime.date.today())
-    else:
-        filename = None
     logging.basicConfig(
         filename=filename,
         level=logging.INFO,
@@ -59,30 +55,32 @@ def check_config(config):
     if config.get("LOG_DIR") and not os.path.isdir(config["LOG_DIR"]):
         raise Exception("Not LOG_DIR or bad path")
     elif config.get("LOGGING_DIR") and not os.path.isdir(config["LOGGING_DIR"]):
-        raise Exception("Not LOGGING_DIR or bad path")
+        logging.info("Make log dir %s", config.get("LOGGING_DIR"))
+        os.makedirs(config.get("LOGGING_DIR"))
     elif config.get("REPORT_DIR") and not os.path.isdir(config["REPORT_DIR"]):
-        raise Exception("Not REPORT_DIR or bad path")
+        logging.info("Make report dir %s", config.get("REPORT_DIR"))
+        os.makedirs(config.get("REPORT_DIR"))
     elif config.get("REPORT_SIZE") and not isinstance(config["REPORT_SIZE"], int):
         raise Exception("REPORT_SIZE is not integer")
     else:
         return config
 
 
-def get_date(filename):
+def get_date(filenames):
     """
-    :param filename: ['nginx-access-ui.log-20170630.gz', 'nginx-access-ui.log-20170530.gz]
+    :param filenames: ['nginx-access-ui.log-20170630.gz', 'nginx-access-ui.log-20170530.gz]
     :return: 2017-06-30
     Функция ищет файл с последней датой в имени файла.
     """
     date = []
-    for name in filename:
+    for name in filenames:
         matched = rx_date.search(name)
         if matched:
             y, m, d = map(int, matched.groups())
             if datetime.date(y, m, d):  # проверяем что это формат даты
                 date.append(datetime.date(y, m, d))
         else:
-            logging.exception("No log file in log dir")
+            logging.error("No log file in log dir")
             break
     if date:
         return max(date)
@@ -111,7 +109,7 @@ def gen_find(filepat, log_dir, report_dir):
     data = []
     for path, dirlist, filelist in os.walk(log_dir):
         if not filelist:
-            logging.exception("No logfiles in log dir %s", log_dir)
+            logging.error("No logfiles in log dir %s", log_dir)
             break
         logging.info("View file in log dir %s" % log_dir)
         for name in fnmatch.filter(filelist, filepat):
@@ -119,11 +117,12 @@ def gen_find(filepat, log_dir, report_dir):
     last_date = get_date(data)
     if last_date:
         if check_report(last_date.strftime("%Y.%m.%d"), report_dir):
-            logging.exception("Report: report-%s.html already in %s created",
+            logging.info(
+                "Report: report-%s.html already in %s created",
                 last_date.strftime("%Y.%m.%d"),
                 report_dir,
             )
-            raise StopIteration()
+            return None, None
         filename = [fn for fn in data if last_date.strftime("%Y%m%d") in fn]
         logging.info("Path: %s, filename: %s", path, filename[0])
         return [os.path.join(path, filename[0]), last_date.strftime("%Y.%m.%d")]
@@ -133,18 +132,28 @@ def gen_find(filepat, log_dir, report_dir):
 
 def gen_open(filename):
     if filename.endswith(".gz"):
-        yield gzip.open(filename)
+        with gzip.open(filename) as o_file:
+            content = o_file.read().splitlines()
     else:
-        yield open(filename)
-
-
-def gen_cat(sources):
-    for s in sources:
-        return [item for item in s]
+        with open(filename, "r") as o_file:
+            content = o_file.read().splitlines()
+    return content
 
 
 def median(l):
     return numpy.median(numpy.array(l))
+
+
+@contextmanager
+def file_open(path):
+    try:
+        f_obj = open(path, "w")
+        yield f_obj
+    except OSError:
+        logging.exception("Houston we have problems!")
+    finally:
+        logging.info("Closing file")
+        f_obj.close()
 
 
 def log_parser(lines, config):
@@ -188,7 +197,7 @@ def log_parser(lines, config):
         set([round(c["time_sum"], 2) for c in result.values()]), reverse=True
     )
     l_counts = (
-        counts[0: config["REPORT_SIZE"]]
+        counts[0 : config["REPORT_SIZE"]]
         if config["REPORT_SIZE"] < len(counts)
         else counts
     )
@@ -227,8 +236,7 @@ def main(config):
     )
     if filename:
         logfiles = gen_open(filename)
-        loglines = gen_cat(logfiles)
-        result, status = log_parser(loglines, config)
+        result, status = log_parser(logfiles, config)
         if status:
             if not result:  # если отчет пустой, возвращаем ничего.
                 result = [
@@ -243,24 +251,27 @@ def main(config):
                         "time_med": None,
                     }
                 ]
-            logging.info("Starting writing report file report-%s.html",  date)
+            logging.info("Starting writing report file report-%s.html", date)
             try:
                 html = open("report.html")
                 report = Template(html.read())
-                f = open(
-                    os.path.join(config["REPORT_DIR"], "report-%s.html" % date), "w+"
-                )
-                f.write(report.safe_substitute(table_json=json.dumps(result)))
-                f.close()
+                with file_open(
+                    os.path.join(config["REPORT_DIR"], "report-%s.html" % date)
+                ) as f_report:
+                    f_report.write(
+                        report.safe_substitute(table_json=json.dumps(result))
+                    )
                 html.close()
                 logging.info("Report file report-%s.html created", date)
             except Exception as e:
                 raise Exception(logging.exception("Error %s", e))
         else:
-            logging.exception("More errors in logfile")
+            logging.error("More errors in logfile")
 
     else:
-        logging.exception("No log file of the required format")
+        logging.error(
+            "There is no log file of the required format or the report has already been created"
+        )
 
 
 if __name__ == "__main__":
