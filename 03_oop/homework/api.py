@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import abc
 import json
 import datetime
 import logging
@@ -9,6 +7,8 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+
+import scoring
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -36,54 +36,116 @@ GENDERS = {
 }
 
 
-class CharField(object):
-    def validate(self, value):
-        if value is not None and not isinstance(self, str):
-            raise TypeError("Value is not string")
+class Field(object):
+    def __init__(self, nullable=False, required=False):
+        self.nullable = nullable
+        self.required = required
+
+    def parse_validate(self, value):
+        return value
 
 
-class ArgumentsField(object):
-    pass
+class CharField(Field):
+    def parse_validate(self, value):
+        if isinstance(value, basestring):
+            return value if isinstance(value, unicode) else value.decode("utf-8")
+        raise ValueError("value is not a string")
+
+
+class ArgumentsField(Field):
+    def parse_validate(self, value):
+        if isinstance(value, dict):
+            return value
+        raise ValueError("value is not a dictionary")
 
 
 class EmailField(CharField):
-    pass
+    def parse_validate(self, value):
+        if isinstance(value, basestring) and "@" not in value:
+            raise ValueError("String is not Email address")
+        if isinstance(value, basestring):
+            return value if isinstance(value, unicode) else value.decode("utf-8")
+        raise ValueError("value is not a string")
+
+class PhoneField(Field):
+        pass
 
 
-class PhoneField(object):
-    phone = CharField
-    pass
+class DateField(Field):
+        pass
 
 
-class DateField(object):
-    pass
+class BirthDayField(DateField):
+        pass
 
 
-class BirthDayField(object):
-    pass
+class GenderField(Field):
+        pass
 
 
-class GenderField(object):
-    pass
+class ClientIDsField(Field):
+        pass
 
 
-class ClientIDsField(object):
-    def __init__(self, ids):
-        self.ids = ids
+class RequestHandler(object):
+    def validate_handle(self, request, arguments, ctx, store):
+        if not arguments.is_valid():
+            return arguments.errfmt(), INVALID_REQUEST
+        return self.handle(request, arguments, ctx, store)
 
-    def validate(self):
-        if not isinstance(self.ids, list):
-            raise TypeError("Not list")
-        if not all(isinstance(r, int) for r in self.ids):
-            raise TypeError("Not int ids format")
+    def handle(self, request, arguments, ctx):
+        return {}, OK
 
 
-class ClientsInterestsRequest(object):
+class RequestMeta(type):
+    def __new__(mcs, name, bases, attrs):
+        field_list = []
+        for k, v in attrs.items():
+                pass
+
+        cls = super(RequestMeta, mcs).__new__(mcs, name, bases, attrs)
+        cls.fields = field_list
+        return cls
+
+
+class Request(object):
+    __metaclass__ = RequestMeta
+
+    def __init__(self, request):
+        self.errors = []
+        self.request = request
+        self.is_cleaned = False
+
+    def clean(self):
+        for f in self.fields:
+            pass
+            try:
+                setattr(self, f.name, f.parse_validate(value))
+            except ValueError, e:
+                self.errors.append("%s field validation error: %s" % (f.name, e))
+        self.is_cleaned = True
+
+    def is_valid(self):
+        pass
+
+    def errfmt(self):
+        return ", ".join(self.errors)
+
+
+class ClientsInterestsRequest(Request):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
 
 
-class OnlineScoreRequest(object):
+class ClientsInterestsHandler(RequestHandler):
+    request_type = ClientsInterestsRequest
+
+    def handle(self, request, arguments, ctx, store):
+        ctx["nclients"] = len(arguments.client_ids)
+        return {cid: scoring.get_interests(store, cid) for cid in arguments.client_ids}, OK
+
+
+class OnlineScoreRequest(Request):
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
@@ -91,8 +153,31 @@ class OnlineScoreRequest(object):
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
 
+    def is_valid(self):
+        default_valid = super(OnlineScoreRequest, self).is_valid()
+        if not default_valid:
+            return default_valid
 
-class MethodRequest(object):
+        if not (self.phone and self.email) and "":
+            pass
+
+        return True
+
+
+class OnlineScoreHandler(RequestHandler):
+    request_type = OnlineScoreRequest
+
+    def handle(self, request, arguments, ctx, store):
+        if request.is_admin:
+            score = 42
+        else:
+            score = scoring.get_score(store, arguments.phone, arguments.email, arguments.birthday,
+                                      arguments.gender, arguments.first_name, arguments.last_name)
+        ctx["has"] = [f.name for f in self.request_type.fields if getattr(arguments, f.name, None) is not None]
+        return {"score": score}, OK
+
+
+class MethodRequest(Request):
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
     token = CharField(required=True, nullable=True)
@@ -115,7 +200,21 @@ def check_auth(request):
 
 
 def method_handler(request, ctx, store):
-    response, code = None, None
+    methods_map = {
+        "online_score": OnlineScoreHandler,
+        "clients_interests": ClientsInterestsHandler,
+    }
+    method_request = MethodRequest(request["body"])
+    if not method_request.is_valid():
+        return method_request.errfmt(), INVALID_REQUEST
+    if not check_auth(method_request):
+        return None, FORBIDDEN
+    handler_cls = methods_map.get(method_request.method)
+    if not handler_cls:
+        return "Method Not Found", NOT_FOUND
+    response, code = handler_cls().validate_handle(method_request,
+                                                   handler_cls.request_type(method_request.arguments),
+                                                   ctx, store)
     return response, code
 
 
@@ -144,7 +243,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             if path in self.router:
                 try:
                     response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
-                except Exception as e:
+                except Exception, e:
                     logging.exception("Unexpected error: %s" % e)
                     code = INTERNAL_ERROR
             else:
@@ -156,6 +255,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         if code not in ERRORS:
             r = {"response": response, "code": code}
         else:
+            # @TODO: return errors as array
             r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
         context.update(r)
         logging.info(context)
@@ -168,7 +268,6 @@ if __name__ == "__main__":
     op.add_option("-p", "--port", action="store", type=int, default=8080)
     op.add_option("-l", "--log", action="store", default=None)
     (opts, args) = op.parse_args()
-    print(opts, args)
     logging.basicConfig(filename=opts.log, level=logging.INFO,
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
     server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
