@@ -46,7 +46,7 @@ class Field(object):
         if self.required and value is None:
             raise ValueError("This field is required.")
         if not self.nullable and not value:
-            raise ValueError('Value is nulled')
+            raise ValueError("Value is nulled")
 
     def parse_validate(self, value):
         pass
@@ -54,7 +54,6 @@ class Field(object):
     def is_empty(self, value):
         if not bool(value):
             raise ValueError("Value is empty")
-
 
 
 class CharField(Field):
@@ -85,6 +84,7 @@ class ArgumentsField(Field):
             raise ValueError("Arguments is not dict")
         return value
 
+
 class EmailField(CharField):
     rx_email = re.compile(r"^[a-zA-Z0-9_]+@[a-zA-Z0-9]+.[a-zA-Z]+", re.MULTILINE)
 
@@ -105,8 +105,8 @@ class EmailField(CharField):
             raise ValueError("String is not Email address")
         return value
 
-class PhoneField(Field):
 
+class PhoneField(Field):
     def parse_validate(self, value):
         """
        Validate field value. Validation rules:
@@ -126,8 +126,8 @@ class PhoneField(Field):
                 raise ValueError("Phone number should be 7**********")
             return value
 
-class DateField(Field):
 
+class DateField(Field):
     def parse_validate(self, value):
         """
         Validate field value. Validation rules:
@@ -139,15 +139,15 @@ class DateField(Field):
         self.validate(value)
         if isinstance(value, str):
             try:
-                datetime.strptime(value, '%d.%m.%Y')
+                datetime.strptime(value, "%d.%m.%Y")
             except ValueError:
                 raise ValueError("Bad date format, should be DD.MM.YYYY")
             return value
         elif not (value is None):
             raise ValueError("Date not string format")
 
-class BirthDayField(DateField):
 
+class BirthDayField(DateField):
     def parse_validate(self, value):
         """
         Validate field value. Validation rules:
@@ -158,11 +158,12 @@ class BirthDayField(DateField):
         """
         super(BirthDayField, self).parse_validate(value)
         if not (value is None):
-            bdate = datetime.strptime(value, '%d.%m.%Y')
+            bdate = datetime.strptime(value, "%d.%m.%Y")
             age = (datetime.today() - bdate).days / 365
             if not (0 < age < 70):
                 raise ValueError("Age %s over 70" % age)
             return value
+
 
 class GenderField(Field):
     def parse_validate(self, value):
@@ -199,6 +200,7 @@ class ClientIDsField(Field):
         if not all(isinstance(x, int) for x in value):
             raise ValueError("Client IDs is not current format %s" % value)
         return value
+
 
 class RequestHandler(object):
     def validate_handle(self, request, arguments, ctx, store):
@@ -271,6 +273,7 @@ class OnlineScoreRequest(RequestBase):
     gender = GenderField(required=False, nullable=True)
 
     vl = [("first_name", "last_name"), ("phone", "email"), ("gender", "birthday")]
+
     def validate_list(self):
         for res in self.vl:
             v = list(set(self.request.keys()) & set(res))
@@ -334,16 +337,20 @@ def check_auth(request):
             datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT
         ).hexdigest()
     else:
-        digest = hashlib.sha512(str(request.account) + str(request.login) + SALT).hexdigest()
+        digest = hashlib.sha512(
+            str(request.account) + str(request.login) + SALT
+        ).hexdigest()
     if digest == request.token:
         return True
     return False
+
 
 def r_convert(req):
     try:
         return json.loads(req)
     except:
         return req
+
 
 def method_handler(request, ctx, store):
     methods_map = {
