@@ -68,7 +68,7 @@ class CharField(Field):
         if not (value is None):
             if not isinstance(value, basestring):
                 raise ValueError("Value is not string format")
-            return value
+            return value if isinstance(value, unicode) else value.decode("utf-8")
 
 
 class ArgumentsField(Field):
@@ -347,10 +347,9 @@ def check_auth(request):
 
 def r_convert(req):
     try:
-        return json.loads(req)
+        return eval(req)
     except:
         return req
-
 
 def method_handler(request, ctx, store):
     methods_map = {
@@ -360,14 +359,15 @@ def method_handler(request, ctx, store):
     if not bool(request["body"]):
         return None, INVALID_REQUEST
     method_request = MethodRequest(r_convert(request["body"]))
+    logging.info("Check validate method request")
     if not method_request.is_valid():
         return method_request.errfmt(), INVALID_REQUEST
+    logging.info("Check auth")
     if not check_auth(method_request):
         return None, FORBIDDEN
     handler_cls = methods_map.get(method_request.method)
     if not handler_cls:
         return "Method Not Found", NOT_FOUND
-
     response, code = handler_cls().validate_handle(
         method_request, handler_cls.request_type(method_request.arguments), ctx, store
     )
