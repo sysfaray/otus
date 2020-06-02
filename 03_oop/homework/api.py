@@ -49,10 +49,10 @@ class Field(object):
             raise ValueError("Value is nulled")
 
     def parse_validate(self, value):
-        pass
+        raise NotImplementedError
 
     def is_empty(self, value):
-        if not bool(value):
+        if not value:
             raise ValueError("Value is empty")
 
 
@@ -128,6 +128,9 @@ class PhoneField(Field):
 
 
 class DateField(Field):
+
+    FORMAT = "%d.%m.%Y"
+
     def parse_validate(self, value):
         """
         Validate field value. Validation rules:
@@ -139,7 +142,7 @@ class DateField(Field):
         self.validate(value)
         if isinstance(value, str):
             try:
-                datetime.strptime(value, "%d.%m.%Y")
+                datetime.strptime(value, self.FORMAT)
             except ValueError:
                 raise ValueError("Bad date format, should be DD.MM.YYYY")
             return value
@@ -158,7 +161,7 @@ class BirthDayField(DateField):
         """
         super(BirthDayField, self).parse_validate(value)
         if not (value is None):
-            bdate = datetime.strptime(value, "%d.%m.%Y")
+            bdate = datetime.strptime(value, self.FORMAT)
             age = (datetime.today() - bdate).days / 365
             if not (0 < age < 70):
                 raise ValueError("Age %s over 70" % age)
@@ -205,7 +208,7 @@ class ClientIDsField(Field):
 class RequestHandler(object):
     def validate_handle(self, request, arguments, ctx, store):
         if not arguments.is_valid():
-            return arguments.errfmt(), INVALID_REQUEST
+            return arguments.get_error(), INVALID_REQUEST
         return self.handle(request, arguments, ctx, store)
 
     def handle(self, request, arguments, ctx):
@@ -241,13 +244,13 @@ class RequestBase(object):
         if not self.errors:
             logging.info("Validation is OK")
             return True
-        logging.error("Validation is False")
+        logging.info("Validation is False")
         return False
 
     def is_valid(self):
         return self.clean()
 
-    def errfmt(self):
+    def get_error(self):
         return ", ".join(self.errors)
 
 
@@ -348,8 +351,10 @@ def check_auth(request):
 def r_convert(req):
     try:
         return eval(req)
-    except:
+    except Exception as e:
+        logging.debug("Error: %s" % e)
         return req
+
 
 def method_handler(request, ctx, store):
     methods_map = {
@@ -361,7 +366,7 @@ def method_handler(request, ctx, store):
     method_request = MethodRequest(r_convert(request["body"]))
     logging.info("Check validate method request")
     if not method_request.is_valid():
-        return method_request.errfmt(), INVALID_REQUEST
+        return method_request.get_error(), INVALID_REQUEST
     logging.info("Check auth")
     if not check_auth(method_request):
         return None, FORBIDDEN
@@ -387,10 +392,10 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         request = None
         try:
             data_string = self.rfile.read(int(self.headers["Content-Length"]))
-            request = json.loads(json.dumps(data_string))
-        except:
+            request = json.loads(data_string)
+        except Exception as e:
+            logging.debug("Error: %s" % e)
             code = BAD_REQUEST
-
         if request:
             path = self.path.strip("/")
             logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
