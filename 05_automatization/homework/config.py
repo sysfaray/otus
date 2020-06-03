@@ -36,7 +36,7 @@ class Config(BaseConfig):
         hostname = StringParameter(default="localhost")
         max_threads = IntParameter(default=1)
         root = StringParameter(default="/opt/httpd/web/")
-
+        timeout = IntParameter(default=5)
 
 config = Config()
 config.load()
