@@ -203,7 +203,6 @@ if __name__ == '__main__':
 
   args = parser.parse_args()
   if args:
-    print(args)
     workers = args.workers
     root = args.root
   setup_logging()
