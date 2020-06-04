@@ -1,10 +1,3 @@
-# ----------------------------------------------------------------------
-# Load config from YAML
-# ----------------------------------------------------------------------
-# Copyright (C) 2007-2020 The NOC Project
-# See LICENSE for details
-# ----------------------------------------------------------------------
-
 # Python modules
 import os
 from itertools import zip_longest
