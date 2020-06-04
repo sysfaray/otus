@@ -21,7 +21,6 @@ httpserver:
     host: ip адрес сервера
     port: порт
     hostname: 
-    max_threads: 
     root: Рутовая директория (default="/opt/httpd/web/")
     timeout: (default=5)
 ```

@@ -6,10 +6,9 @@ import mimetypes
 import re
 import os
 import time
-import threading
 from core.comp import smart_bytes, smart_text
 from collections import OrderedDict
-import concurrent.futures
+from concurrent.futures.thread import ThreadPoolExecutor
 # HTTP Config
 from config import config
 
@@ -36,16 +35,39 @@ def setup_logging(loglevel=None):
 
 RX_HEAD = re.compile(r'^(?P<method>\w*) (?P<address>.*) (?P<protocol>HTTP\/\d+\.\d+)$')
 
+def setup_asyncio() -> None:
+    """
+    Initial setup of asynci
+    :return:
+    """
+    logging.info("Setting up asyncio event loop policy")
+    if config.features.use_uvlib:
+        try:
+            import uvloop
+            logging.info("Setting up libuv event loop")
+            uvloop.install()
+        except ImportError:
+            logging.info("libuv is not installed, using default event loop")
+    asyncio.set_event_loop_policy(EventLoopPolicy())
+
+class EventLoopPolicy(asyncio.DefaultEventLoopPolicy):
+    def get_event_loop(self) -> asyncio.AbstractEventLoop:
+        try:
+            return super().get_event_loop()
+        except RuntimeError:
+            loop = self.new_event_loop()
+            self.set_event_loop(loop)
+            return loop
+
 class HTTPD(object):
-  def __init__(self, host, port, loop=None):
+  def __init__(self, host, port):
     self._root = config.httpserver.root
-    self._loop = loop or asyncio.get_event_loop()
-    self._server = asyncio.start_server(self.new_session, host=host, port=port)
+    self._loop = asyncio.get_event_loop()
+    self._server = asyncio.start_server(self.new_session, host=host, port=port, loop=self._loop)
+    self._executor = ThreadPoolExecutor(max_workers=config.features.max_workers)
 
   def start(self, and_loop=True):
-
     self._server = self._loop.run_until_complete(self._server)
-
     logging.info('Listening established on {0}, whith session timeout: {1}s, hostname: {2} '.format(self._server.sockets[0].getsockname(), config.httpserver.timeout, config.httpserver.hostname))
     if and_loop:
       self._loop.run_forever()
@@ -73,8 +95,6 @@ class HTTPD(object):
       status = '404 Not Found' if os.path.basename(source) != 'index.html' else '403 Forbidden'
     return status, data, content_type
 
-
-
   def parse_header_response(self, method, status, data, type_data='text/plain'):
     """
     """
@@ -89,7 +109,6 @@ class HTTPD(object):
     headers_str = status_line + headers_str + '\r\n\r\n'
     return smart_bytes(headers_str)
 
-
   def parse_response(self, method, status, data, type_data='text/plain'):
     """
     """
@@ -97,8 +116,6 @@ class HTTPD(object):
     if method != 'HEAD':
       response1 += smart_bytes(data)
     return response1
-
-
 
   def parse_message(self, message):
     """
@@ -137,10 +154,11 @@ class HTTPD(object):
                                     type_data=type_data)
     return message
 
+  @asyncio.coroutine
   async def new_session(self, reader, writer):
     logging.info("New session started")
     try:
-      await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout)
+      self._executor.submit(await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
     except asyncio.TimeoutError as te:
       logging.info(f'Time is up!{te}')
     finally:
@@ -150,7 +168,7 @@ class HTTPD(object):
   @asyncio.coroutine
   async def handle_connection(self, reader, writer):
     addr = writer.get_extra_info('peername')
-    logging.info('Connection established with {}'.format(addr))
+    logging.info('Connection established with %s', addr)
     try:
       keep_alive = True
       while keep_alive:
@@ -167,7 +185,7 @@ class HTTPD(object):
             writer.write(smart_bytes(revert_message))
             await writer.drain()
           else:
-            logging.info('Connection terminated with {}'.format(addr))
+            logging.info('Connection terminated with %s', addr)
             break
     finally:
       writer.close()
@@ -175,6 +193,7 @@ class HTTPD(object):
 
 if __name__ == '__main__':
   setup_logging()
+  setup_asyncio()
   serv = HTTPD(config.httpserver.host, config.httpserver.port)
   try:
     serv.start()

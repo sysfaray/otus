@@ -86,3 +86,9 @@ class MapParameter(BaseParameter):
             if self.mappings[mv] == self.value:
                 return mv
         return self.value
+
+class BooleanParameter(BaseParameter):
+    def clean(self, v):
+        if isinstance(v, str):
+            v = v.lower() in ["y", "t", "true", "yes"]
+        return bool(v)

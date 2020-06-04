@@ -7,7 +7,8 @@ from core.config.base import BaseConfig, ConfigSection
 from core.config.params import (
     StringParameter,
     IntParameter,
-    MapParameter
+    MapParameter,
+    BooleanParameter
 )
 
 
@@ -28,15 +29,20 @@ class Config(BaseConfig):
                 "debug": logging.DEBUG,
             },
         )
-        log_format = StringParameter(default="%(asctime)s [%(levelname)s] [%(name)s] [%(funcName)s] %(lineno)d: %(message)s")
+        log_format = StringParameter(
+            default="%(asctime)s [%(levelname)s] [%(name)s] [%(funcName)s] %(lineno)d: %(message)s")
 
     class httpserver(ConfigSection):
         host = StringParameter(default="127.0.0.1")
         port = IntParameter(default=80)
         hostname = StringParameter(default="localhost")
-        max_threads = IntParameter(default=1)
         root = StringParameter(default="/opt/httpd/web/")
         timeout = IntParameter(default=5)
+
+    class features(ConfigSection):
+        use_uvlib = BooleanParameter(default=False)
+        max_workers = IntParameter(default=1)
+
 
 config = Config()
 config.load()
