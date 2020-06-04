@@ -6,9 +6,11 @@ import mimetypes
 import re
 import os
 import time
+import argparse
 from core.comp import smart_bytes, smart_text
 from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
+
 # HTTP Config
 from config import config
 
@@ -60,11 +62,11 @@ class EventLoopPolicy(asyncio.DefaultEventLoopPolicy):
             return loop
 
 class HTTPD(object):
-  def __init__(self, host, port):
-    self._root = config.httpserver.root
+  def __init__(self, root, workers):
+    self._root = root or config.httpserver.root
     self._loop = asyncio.get_event_loop()
-    self._server = asyncio.start_server(self.new_session, host=host, port=port, loop=self._loop)
-    self._executor = ThreadPoolExecutor(max_workers=config.features.max_workers)
+    self._server = asyncio.start_server(self.new_session, host=config.httpserver.host, port=config.httpserver.port, loop=self._loop)
+    self._executor = ThreadPoolExecutor(max_workers=workers or config.features.max_workers)
 
   def start(self, and_loop=True):
     self._server = self._loop.run_until_complete(self._server)
@@ -192,9 +194,21 @@ class HTTPD(object):
 
 
 if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-w', '--workers',
+                      help='Workers count',
+                      type=int)
+  parser.add_argument('-r', '--root',
+                      help='Root dir')
+
+  args = parser.parse_args()
+  if args:
+    print(args)
+    workers = args.workers
+    root = args.root
   setup_logging()
   setup_asyncio()
-  serv = HTTPD(config.httpserver.host, config.httpserver.port)
+  serv = HTTPD(root, workers)
   try:
     serv.start()
   except KeyboardInterrupt:
