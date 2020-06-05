@@ -160,7 +160,7 @@ class HTTPD(object):
   async def new_session(self, reader, writer):
     logging.info("New session started")
     try:
-      self._executer.submit(await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
+       self._loop.run_in_executor(self._executer, await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
     except asyncio.TimeoutError as te:
       logging.info(f'Time is up!{te}')
     finally:

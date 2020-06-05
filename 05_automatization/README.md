@@ -104,36 +104,37 @@ Server Hostname:        localhost
 Server Port:            80
 
 Document Path:          /
-Document Length:        69 bytes
+Document Length:        9 bytes
 
 Concurrency Level:      100
-Time taken for tests:   75.903 seconds
+Time taken for tests:   47.946 seconds
 Complete requests:      50000
-Failed requests:        0
+Failed requests:        85
+   (Connect: 0, Receive: 0, Length: 85, Exceptions: 0)
 Write errors:           0
 Non-2xx responses:      50000
-Total transferred:      10300000 bytes
-HTML transferred:       3450000 bytes
-Requests per second:    658.74 [#/sec] (mean)
-Time per request:       151.806 [ms] (mean)
-Time per request:       1.518 [ms] (mean, across all concurrent requests)
-Transfer rate:          132.52 [Kbytes/sec] received
+Total transferred:      7300000 bytes
+HTML transferred:       450000 bytes
+Requests per second:    1042.84 [#/sec] (mean)
+Time per request:       95.892 [ms] (mean)
+Time per request:       0.959 [ms] (mean, across all concurrent requests)
+Transfer rate:          148.69 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    2   0.7      2       6
-Processing:     5  150  13.7    146     259
-Waiting:        2   83  36.6     82     244
-Total:          5  152  13.8    148     260
+Connect:        0    2   1.2      1      23
+Processing:     4   94  37.3     83     478
+Waiting:        1   58  30.7     54     409
+Total:          4   96  37.5     84     478
 
 Percentage of the requests served within a certain time (ms)
-  50%    148
-  66%    153
-  75%    157
-  80%    161
-  90%    170
-  95%    178
-  98%    187
-  99%    196
- 100%    260 (longest request)
+  50%     84
+  66%     90
+  75%     96
+  80%    101
+  90%    126
+  95%    157
+  98%    236
+  99%    283
+ 100%    478 (longest request)
  ```
