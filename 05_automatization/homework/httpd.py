@@ -65,7 +65,7 @@ class HTTPD(object):
   def __init__(self, root, workers):
     self._root = root or config.httpserver.root
     self._loop = asyncio.get_event_loop()
-    self._executer = ThreadPoolExecutor(max_workers=workers or config.features.max_workers)
+    self._workers = workers or config.features.max_workers
     self._server = asyncio.start_server(self.new_session, host=config.httpserver.host, port=config.httpserver.port, loop=self._loop)
 
   def start(self, and_loop=True):
@@ -159,13 +159,14 @@ class HTTPD(object):
   @asyncio.coroutine
   async def new_session(self, reader, writer):
     logging.info("New session started")
-    try:
-       self._loop.run_in_executor(self._executer, await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
-    except asyncio.TimeoutError as te:
-      logging.info(f'Time is up!{te}')
-    finally:
-      writer.close()
-      logging.info("Writer closed")
+    with ThreadPoolExecutor(max_workers=self._workers) as executor:
+      try:
+         executor.submit(await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
+      except asyncio.TimeoutError as te:
+        logging.info(f'Time is up!{te}')
+      finally:
+        writer.close()
+        logging.info("Writer closed")
 
   @asyncio.coroutine
   async def handle_connection(self, reader, writer):
