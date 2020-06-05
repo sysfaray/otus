@@ -65,8 +65,8 @@ class HTTPD(object):
   def __init__(self, root, workers):
     self._root = root or config.httpserver.root
     self._loop = asyncio.get_event_loop()
+    self._executer = ThreadPoolExecutor(max_workers=workers or config.features.max_workers)
     self._server = asyncio.start_server(self.new_session, host=config.httpserver.host, port=config.httpserver.port, loop=self._loop)
-    self._executor = ThreadPoolExecutor(max_workers=workers or config.features.max_workers)
 
   def start(self, and_loop=True):
     self._server = self._loop.run_until_complete(self._server)
@@ -160,7 +160,7 @@ class HTTPD(object):
   async def new_session(self, reader, writer):
     logging.info("New session started")
     try:
-      self._executor.submit(await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
+      self._executer.submit(await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
     except asyncio.TimeoutError as te:
       logging.info(f'Time is up!{te}')
     finally:
@@ -177,18 +177,17 @@ class HTTPD(object):
         keep_alive = False
         while True:
           logging.info('Awaiting data')
-          line = await reader.readline()
+          line = await reader.read(1024)
           logging.info('Finished await got %s' % smart_text(line))
-          if line.rstrip(b'\r\n'):
-            if re.match(rb'connection:\s*keep-alive', line, re.I):
-              keep_alive = True
-            revert_message = self.parse_message(line)
-            logging.info(revert_message)
-            writer.write(smart_bytes(revert_message))
-            await writer.drain()
-          else:
+          if not line:
             logging.info('Connection terminated with %s', addr)
             break
+          if re.match(rb'connection:\s*keep-alive', line, re.I):
+            keep_alive = True
+          revert_message = self.parse_message(line)
+          logging.info(revert_message)
+          writer.write(smart_bytes(revert_message))
+          await writer.drain()
     finally:
       writer.close()
 
