@@ -7,70 +7,37 @@ import re
 import os
 import time
 import argparse
-from core.comp import smart_bytes, smart_text
 from collections import OrderedDict
-from concurrent.futures.thread import ThreadPoolExecutor
+import concurrent.futures
 
-# HTTP Config
-from config import config
-
-def setup_logging(loglevel=None):
+def setup_logging(loglevel):
   """
   Create new or setup existing logger
   """
-  if not loglevel:
-    loglevel = config.log.loglevel
-  logger = logging.getLogger()
-  if len(logger.handlers):
-    # Logger is already initialized
-    fmt = logging.Formatter(config.log.log_format, None)
-    for hd in logging.root.handlers:
-      if isinstance(hd, logging.StreamHandler):
-        hd.stream = sys.stdout
-      hd.setFormatter(fmt)
-    logging.root.setLevel(loglevel)
-  else:
-    # Initialize logger
-    logging.basicConfig(stream=sys.stdout, format=config.log.log_format, level=loglevel)
-  logging.captureWarnings(True)
+  log_format = "%(asctime)s [%(levelname)s] [%(name)s] [%(funcName)s] %(lineno)d: %(message)s"
+  logging.basicConfig(format=log_format, level=loglevel)
 
 
 RX_HEAD = re.compile(r'^(?P<method>\w*) (?P<address>.*) (?P<protocol>HTTP\/\d+\.\d+)$')
-
-def setup_asyncio() -> None:
-    """
-    Initial setup of asynci
-    :return:
-    """
-    logging.info("Setting up asyncio event loop policy")
-    if config.features.use_uvlib:
-        try:
-            import uvloop
-            logging.info("Setting up libuv event loop")
-            uvloop.install()
-        except ImportError:
-            logging.info("libuv is not installed, using default event loop")
-    asyncio.set_event_loop_policy(EventLoopPolicy())
-
-class EventLoopPolicy(asyncio.DefaultEventLoopPolicy):
-    def get_event_loop(self) -> asyncio.AbstractEventLoop:
-        try:
-            return super().get_event_loop()
-        except RuntimeError:
-            loop = self.new_event_loop()
-            self.set_event_loop(loop)
-            return loop
+LOG_LEVEL = {
+    "critical": logging.CRITICAL,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "info": logging.INFO,
+    "debug": logging.DEBUG
+  }
 
 class HTTPD(object):
-  def __init__(self, root, workers):
-    self._root = root or config.httpserver.root
-    self._loop = asyncio.get_event_loop()
-    self._executor = ThreadPoolExecutor(max_workers=workers or config.features.max_workers)
-    self._server = asyncio.start_server(self.new_session, host=config.httpserver.host, port=config.httpserver.port, loop=self._loop)
+  def __init__(self, config, loop=None):
+    self._root = config['root']
+    self._timeout = config['timeout']
+    self._loop = loop or asyncio.get_event_loop()
+    self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['workers'])
+    self._server = asyncio.start_server(self.new_session, host=config['host'], port=config['port'], loop=self._loop)
 
   def start(self, and_loop=True):
     self._server = self._loop.run_until_complete(self._server)
-    logging.info('Listening established on {0}, whith session timeout: {1}s, hostname: {2} '.format(self._server.sockets[0].getsockname(), config.httpserver.timeout, config.httpserver.hostname))
+    logging.info('Listening established on {0}'.format(self._server.sockets[0].getsockname()))
     if and_loop:
       self._loop.run_forever()
 
@@ -82,7 +49,7 @@ class HTTPD(object):
   def get_data(self, path):
     """
     """
-    _path = smart_text(os.path.abspath(path).strip('/'))
+    _path = os.path.abspath(path).strip('/')
     source = os.path.abspath(os.path.join(self._root, _path))
     if os.path.isdir(source):
       source = os.path.join(source, 'index.html')
@@ -92,7 +59,7 @@ class HTTPD(object):
       status = '200 OK'
     else:
       source = os.path.abspath(os.path.join(self._root, _path))
-      data = 'Not Found'
+      data = b'Not Found'
       content_type = 'text/plain'
       status = '404 Not Found' if os.path.basename(source) != 'index.html' else '403 Forbidden'
     return status, data, content_type
@@ -109,32 +76,33 @@ class HTTPD(object):
     headers['Connection'] = 'close'
     headers_str = '\r\n'.join(['{}: {}'.format(key, headers[key]) for key in headers.keys()])
     headers_str = status_line + headers_str + '\r\n\r\n'
-    return smart_bytes(headers_str)
+    return headers_str.encode('utf-8')
 
-  def parse_response(self, method, status, data, type_data='text/plain'):
+  def parse_response(self, method, status, data, type_data=b'text/plain'):
     """
     """
     response1 = self.parse_header_response(method=method, status=status, data=data, type_data=type_data)
     if method != 'HEAD':
-      response1 += smart_bytes(data)
+      response1 += data
     return response1
 
   def parse_message(self, message):
     """
     """
-    info = smart_text(message).split("\r\n", 1)[0]
+    u_message = message.decode("utf-8")
+    info = u_message.split("\r\n", 1)[0]
     logging.info(info)
     macth = RX_HEAD.match(info)
     if macth:
       method = macth.group('method')
       address = macth.group('address')
     else:
-      return 'Requies is not valid'
+      return b'Requies is not valid'
     if method not in ['HEAD', 'GET']:
-      message = self.parse_response(method=method,
+      return self.parse_response(method=method,
                                     status='405 Method Not Allowed',
-                                    data='Method Not Allowed',
-                                    type_data='text/plain')
+                                    data=b'Method Not Allowed',
+                                    type_data=b'text/plain')
     else:
       path = address
       if '#' in path:
@@ -145,22 +113,27 @@ class HTTPD(object):
         fragments_of_path = path.split('%')
         normalize_fragments_of_path = [fragments_of_path[0], ]
         for symbol in fragments_of_path[1:]:
-          normalize_fragments_of_path.append(smart_text(bytes.fromhex(symbol[:2])))
+          normalize_fragments_of_path.append(bytes.fromhex(symbol[:2]).decode('utf-8'))
           normalize_fragments_of_path.append(symbol[2:])
         path = ''.join(normalize_fragments_of_path)
       logging.info('PATH: %s', path)
+
       status, data, type_data = self.get_data(path=path)
-      message = self.parse_response(method=method,
-                                    status=status,
+      if path is "/":
+        return self.parse_response(method=method,
+                                    status="200 OK",
                                     data=data,
                                     type_data=type_data)
-    return message
+      return self.parse_response(method=method,
+                                      status=status,
+                                      data=data,
+                                      type_data=type_data)
 
   @asyncio.coroutine
   async def new_session(self, reader, writer):
     logging.info("New session started")
     try:
-       self._loop.run_in_executor(self._executor, await asyncio.wait_for(self.handle_connection(reader, writer), timeout=config.httpserver.timeout))
+       await asyncio.wait_for(self.handle_connection(reader,writer), timeout=self._timeout)
     except asyncio.TimeoutError as te:
       logging.info(f'Time is up!{te}')
     finally:
@@ -177,36 +150,57 @@ class HTTPD(object):
         keep_alive = False
         while True:
           logging.info('Awaiting data')
-          line = await reader.read(1024)
-          logging.info('Finished await got %s' % smart_text(line))
-          if not line:
-            logging.info('Connection terminated with %s', addr)
+          line = await reader.readline()
+          logging.info('Finished await got %s' % line)
+          if not line.rstrip(b'\r\n'):
             break
           if re.match(rb'connection:\s*keep-alive', line, re.I):
             keep_alive = True
           revert_message = self.parse_message(line)
-          logging.info(revert_message)
-          writer.write(smart_bytes(revert_message))
+          logging.info("Revert message: %s" % revert_message)
+          writer.write(revert_message)
           await writer.drain()
     finally:
       writer.close()
 
-
 if __name__ == '__main__':
+
+
   parser = argparse.ArgumentParser()
-  parser.add_argument('-w', '--workers',
-                      help='Workers count',
+  parser.add_argument('--host',
+                      help='Host',
+                      default='127.0.0.1',
+                      type=str)
+  parser.add_argument('--port',
+                      help='Port',
+                      default=80,
                       type=int)
+  parser.add_argument('-w', '--workers',
+                      help='Worker slots',
+                      default=2,
+                      type=int)
+  parser.add_argument('-t', '--timeout',
+                      help='Timeout',
+                      default=0.1,
+                      type=float)
   parser.add_argument('-r', '--root',
-                      help='Root dir')
+                      help='Root dir',
+                      default=os.path.abspath(os.path.join(os.path.curdir, 'web')))
+  parser.add_argument('-l', '--loglevel',
+                      help='Log level',
+                      default=LOG_LEVEL["info"],
+                      type=str)
 
   args = parser.parse_args()
-  if args:
-    workers = args.workers
-    root = args.root
-  setup_logging()
-  setup_asyncio()
-  serv = HTTPD(root, workers)
+  params = dict(
+    host=args.host,
+    port=args.port,
+    root=args.root,
+    workers=args.workers,
+    timeout=args.timeout,
+  )
+  setup_logging(loglevel=args.loglevel)
+  serv = HTTPD(params)
   try:
     serv.start()
   except KeyboardInterrupt:
