@@ -74,7 +74,7 @@ Waiting:        2   72  31.4     72     216
 Total:          5  132   7.5    132     220
 ```
 
-Тест с uvloop и 10 потоками
+Тест с 10 потоками
 
 ```
 Server Software:        HTTPD
@@ -85,34 +85,33 @@ Document Path:          /
 Document Length:        9 bytes
 
 Concurrency Level:      100
-Time taken for tests:   47.946 seconds
+Time taken for tests:   29.631 seconds
 Complete requests:      50000
-Failed requests:        85
-   (Connect: 0, Receive: 0, Length: 85, Exceptions: 0)
+Failed requests:        1
+   (Connect: 0, Receive: 1, Length: 0, Exceptions: 0)
 Write errors:           0
-Non-2xx responses:      50000
-Total transferred:      7300000 bytes
-HTML transferred:       450000 bytes
-Requests per second:    1042.84 [#/sec] (mean)
-Time per request:       95.892 [ms] (mean)
-Time per request:       0.959 [ms] (mean, across all concurrent requests)
-Transfer rate:          148.69 [Kbytes/sec] received
+Total transferred:      6949861 bytes
+HTML transferred:       449991 bytes
+Requests per second:    1687.42 [#/sec] (mean)
+Time per request:       59.262 [ms] (mean)
+Time per request:       0.593 [ms] (mean, across all concurrent requests)
+Transfer rate:          229.05 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    2   1.2      1      23
-Processing:     4   94  37.3     83     478
-Waiting:        1   58  30.7     54     409
-Total:          4   96  37.5     84     478
+Connect:        0    0   0.2      0       5
+Processing:     0   59  31.9     59     386
+Waiting:        0   55  30.2     54     313
+Total:          0   59  31.9     60     386
 
 Percentage of the requests served within a certain time (ms)
-  50%     84
-  66%     90
-  75%     96
-  80%    101
-  90%    126
-  95%    157
-  98%    236
-  99%    283
- 100%    478 (longest request)
+  50%     60
+  66%     77
+  75%     86
+  80%     90
+  90%     99
+  95%    105
+  98%    111
+  99%    118
+ 100%    386 (longest request)
  ```
