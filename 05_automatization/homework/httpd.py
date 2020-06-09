@@ -199,7 +199,7 @@ if __name__ == '__main__':
     workers=args.workers,
     timeout=args.timeout,
   )
-  setup_logging(loglevel=args.loglevel)
+  setup_logging(loglevel=LOG_LEVEL[args.loglevel])
   serv = HTTPD(params)
   try:
     serv.start()
