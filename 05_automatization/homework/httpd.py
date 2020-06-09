@@ -6,9 +6,11 @@ import mimetypes
 import re
 import os
 import time
+import socket
+from datetime import datetime
 import argparse
 from collections import OrderedDict
-import concurrent.futures
+import multiprocessing
 
 def setup_logging(loglevel):
   """
@@ -27,24 +29,59 @@ LOG_LEVEL = {
     "debug": logging.DEBUG
   }
 
-class HTTPD(object):
-  def __init__(self, config, loop=None):
+class HTTPD:
+  def __init__(self, protocol, config, loop=None):
     self._root = config['root']
     self._timeout = config['timeout']
-    self._loop = loop or asyncio.get_event_loop()
-    self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=config['workers'])
-    self._server = asyncio.start_server(self.new_session, host=config['host'], port=config['port'], loop=self._loop)
+    self._workers = config['workers']
+    self._protocol = protocol
+    self._loop = None
+    self._server = None
+    self._pid = os.getpid()
+    self._host = config['host']
+    self._port = config['port']
 
-  def start(self, and_loop=True):
-    self._server = self._loop.run_until_complete(self._server)
-    logging.info('Listening established on {0}'.format(self._server.sockets[0].getsockname()))
-    if and_loop:
-      self._loop.run_forever()
+  def run(self):
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    self._loop = asyncio.get_event_loop()
 
-  def stop(self, and_loop=True):
+    coro = self._loop.create_server(
+      lambda: self._protocol(self._root),
+      host=self._host,
+      port=self._port,
+      family=socket.AF_INET,
+      reuse_port=True,
+    )
+    self._server = self._loop.run_until_complete(coro)
+
+    logging.info('Listener Server on {}, pid {}'.format(
+      self._server.sockets[0].getsockname(),
+      self._pid
+    ))
+    self._loop.run_forever()
+
+  def close(self):
     self._server.close()
-    if and_loop:
-      self._loop.close()
+    self._loop.run_until_complete(self._server.wait_closed())
+    self._loop.close()
+
+class ProtocolEcho(asyncio.Protocol):
+  def __init__(self, root):
+    self._root = root
+
+  def connection_made(self, transport):
+    peername = transport.get_extra_info('peername')
+    logging.info('Connection from {}'.format(peername))
+    self.transport = transport
+
+  def data_received(self, data):
+    message = data.decode()
+    logging.info('Data received: {!r}'.format(message))
+    revert_message = self.parse_message(data)
+    logging.info('Send: {!r}'.format(revert_message))
+    self.transport.write(revert_message)
+    logging.info('Close the client socket')
+    self.transport.close()
 
   def get_data(self, path):
     """
@@ -129,43 +166,15 @@ class HTTPD(object):
                                       data=data,
                                       type_data=type_data)
 
-  @asyncio.coroutine
-  async def new_session(self, reader, writer):
-    logging.info("New session started")
-    try:
-       await asyncio.wait_for(self.handle_connection(reader,writer), timeout=self._timeout)
-    except asyncio.TimeoutError as te:
-      logging.info(f'Time is up!{te}')
-    finally:
-      writer.close()
-      logging.info("Writer closed")
 
-  @asyncio.coroutine
-  async def handle_connection(self, reader, writer):
-    addr = writer.get_extra_info('peername')
-    logging.info('Connection established with %s', addr)
-    try:
-      keep_alive = True
-      while keep_alive:
-        keep_alive = False
-        while True:
-          logging.info('Awaiting data')
-          line = await reader.readline()
-          logging.info('Finished await got %s' % line)
-          if not line.rstrip(b'\r\n'):
-            break
-          if re.match(rb'connection:\s*keep-alive', line, re.I):
-            keep_alive = True
-          revert_message = self.parse_message(line)
-          logging.info("Revert message: %s" % revert_message)
-          writer.write(revert_message)
-          await writer.drain()
-    finally:
-      writer.close()
+def create_tcp_srv(params):
+  server = HTTPD(ProtocolEcho, params)
+  try:
+    server.run()
+  except KeyboardInterrupt:
+    server.close()
 
-if __name__ == '__main__':
-
-
+def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--host',
                       help='Host',
@@ -200,10 +209,21 @@ if __name__ == '__main__':
     timeout=args.timeout,
   )
   setup_logging(loglevel=LOG_LEVEL[args.loglevel])
-  serv = HTTPD(params)
-  try:
-    serv.start()
-  except KeyboardInterrupt:
-    pass  # Press Ctrl+C to stop
-  finally:
-    serv.stop()
+
+  srvproclist = list()
+  for i in range(args.workers):
+    p = multiprocessing.Process(
+      target=create_tcp_srv,
+      args=(params,)
+    )
+    srvproclist.append(p)
+
+  for proc in srvproclist:
+    proc.start()
+
+  for proc in srvproclist:
+    proc.join()
+
+if __name__ == '__main__':
+  main()
+
