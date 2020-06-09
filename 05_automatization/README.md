@@ -9,28 +9,18 @@
    git clone git@github.com:sysfaray/otus.git
    cp otus/05_automatization/homework/* /opt/httpd/
    cd httpd
-   pip install -r req/install.txt
 ```
 
-Конфигурация сервера лежит в etc/settings.yml, сама конфигурация находится в config.py
-```
-log:
-   loglevel: Уровень логирования, по умолчанию (default="info")
-   log_format: Формат логов (
-            default="%(asctime)s [%(levelname)s] [%(name)s] [%(funcName)s] %(lineno)d: %(message)s")
-httpserver:
-    host: ip адрес сервера (default="127.0.0.1")
-    port: порт (default=80)
-    hostname: (default="localhost")
-    root: Рутовая директория (default="/opt/httpd/web/")
-    timeout: (default=5)
-features:
-    use_uvlib: Использование uvloop, вместо штатного loop (default=False)
-    max_workers: Число потоков (default=1) 
-```
 Запуск 
 
-```python httpd.py```
+```
+--host - ip addres
+--port - port 
+-w - число воркеров
+-t - timeout
+-r - root directory
+-l - loglevel
+python httpd.py --host 127.0.0.1 --port 80 -w 10 -l debug```
 
 Проверка тестов
 
@@ -65,35 +55,23 @@ Document Path:          /
 Document Length:        69 bytes
 
 Concurrency Level:      100
-Time taken for tests:   82.667 seconds
+Time taken for tests:   66.251 seconds
 Complete requests:      50000
 Failed requests:        0
 Write errors:           0
-Non-2xx responses:      50000
-Total transferred:      10300000 bytes
+Total transferred:      9950000 bytes
 HTML transferred:       3450000 bytes
-Requests per second:    604.84 [#/sec] (mean)
-Time per request:       165.333 [ms] (mean)
-Time per request:       1.653 [ms] (mean, across all concurrent requests)
-Transfer rate:          121.68 [Kbytes/sec] received
+Requests per second:    754.70 [#/sec] (mean)
+Time per request:       132.502 [ms] (mean)
+Time per request:       1.325 [ms] (mean, across all concurrent requests)
+Transfer rate:          146.67 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    2   1.5      2      30
-Processing:     5  163  31.0    153     401
-Waiting:        3  102  44.3    103     399
-Total:          5  165  31.1    155     402
-
-Percentage of the requests served within a certain time (ms)
-  50%    155
-  66%    164
-  75%    171
-  80%    176
-  90%    204
-  95%    234
-  98%    270
-  99%    277
- 100%    402 (longest request)
+Connect:        0    2   0.7      2       8
+Processing:     4  131   7.5    130     219
+Waiting:        2   72  31.4     72     216
+Total:          5  132   7.5    132     220
 ```
 
 Тест с uvloop и 10 потоками
