@@ -1,0 +1,42 @@
+version: '3.7'
+services:
+ postgres:
+  restart: always
+  container_name: hasker_postgres
+  build: 
+   context: .
+   dockerfile: dockerfiles/docker_postgres.conf
+  volumes:
+      - ./dbdata:/var/lib/postgresql/data
+  environment:
+    POSTGRES_DB: "db"
+    POSTGRES_HOST_AUTH_METHOD: "trust"
+ django:
+  restart: always
+  container_name: hasker_django
+  volumes:
+   - ./code:/code
+   - sock:/sock
+  build: 
+   context: .
+   dockerfile: dockerfiles/docker_django.conf
+  depends_on:
+   - postgres
+  command: uwsgi --ini /etc/uwsgi.ini
+  ports:
+   - "8000:8000"
+ nginx:
+  restart: always
+  container_name: hasker_nginx
+  volumes:
+   - ./code:/code
+   - sock:/sock
+  build:
+   context: .
+   dockerfile: dockerfiles/docker_nginx.conf
+  depends_on:
+   - django
+  ports:
+    - "80:8888"
+volumes:
+ sock:

@@ -1,0 +1,316 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Swagger UI</title>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Source+Code+Pro:300,600|Titillium+Web:400,600,700" rel="stylesheet">
+  <link href="/static/rest_framework_swagger/bundles/vendors.bundle.css" rel="stylesheet" type="text/css">
+  <link href="/static/rest_framework_swagger/bundles/app.bundle.css" rel="stylesheet" type="text/css">
+  
+  
+  
+</head>
+
+<body>
+  <div class="swagger-ui">
+    <div class="topbar">
+      <div class="wrapper">
+        <div class="topbar-wrapper">
+          <a href="#" class="link">
+            <img src="/static/rest_framework_swagger/logo_small.png" alt="Swagger Logo">
+            <span>swagger</span>
+          </a>
+          <div class="download-url-wrapper">
+          
+            
+            <a class="download-url-button button" href="?next=/api/docs/">Logout</a>
+            
+          
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="user-context wrapper">
+
+    </div>
+    
+  </div>
+
+  <div id="rest-swagger-ui"></div>
+
+
+  <footer class="swagger-ui">
+    <div class="wrapper">
+      Powered by <a href="https://github.com/marcgibbons/django-rest-swagger" target="_new">Django REST Swagger</a>
+    </div>
+  </footer>
+
+  <script>
+    window.drsSettings = {"customHeaders": {}, "apisSorter": null, "operationsSorter": null, "docExpansion": null, "showRequestHeaders": false, "acceptHeaderVersion": null, "jsonEditor": false, "supportedSubmitMethods": ["get", "post", "put", "delete", "patch"]};
+    window.drsSpec = {
+  "swagger": "2.0",
+  "info": {
+    "title": "Hasker API",
+    "description": "",
+    "version": ""
+  },
+  "host": "192.168.2.144",
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/api/token-auth/": {
+      "post": {
+        "operationId": "token-auth_create",
+        "summary": "API View that receives a POST with a user's username and password.",
+        "tags": [
+          "api"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "username",
+                "password"
+              ],
+              "properties": {
+                "username": {
+                  "description": "",
+                  "type": "string"
+                },
+                "password": {
+                  "description": "",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "description": "API View that receives a POST with a user's username and password.\n\nReturns a JSON Web Token that can be used for authenticated requests.",
+        "responses": {
+          "200": {
+            "description": "Authorization passed"
+          },
+          "400": {
+            "description": "Wrong credentials provided"
+          }
+        }
+      }
+    },
+    "/api/{version}/index/": {
+      "get": {
+        "operationId": "index_list",
+        "summary": "List of questions with pagination",
+        "tags": [
+          "api"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "description": "API version: \"v1\" or \"v2\"",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "page",
+            "description": "A page number within the paginated result set.",
+            "in": "query",
+            "type": "integer",
+            "required": false
+          }
+        ],
+        "description": "Shows list of 10 questions with basic details and pagination. JWT token should be provided with request.",
+        "responses": {
+          "200": {
+            "description": "Successful request"
+          },
+          "401": {
+            "description": "Wrong JWT provided, update your token"
+          }
+        }
+      }
+    },
+    "/api/{version}/questions/{id}/": {
+      "get": {
+        "operationId": "questions_read",
+        "summary": "Question details",
+        "tags": [
+          "api"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "description": "API version: \"v1\" or \"v2\"",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "id",
+            "description": "Question id",
+            "in": "path",
+            "type": "integer",
+            "required": true
+          }
+        ],
+        "description": "Full question details. JWT token should be provided with request.",
+        "responses": {
+          "200": {
+            "description": "Successful request"
+          },
+          "401": {
+            "description": "Wrong JWT provided, update your token"
+          },
+          "404": {
+            "description": "Question not found, check question id"
+          }
+        }
+      }
+    },
+    "/api/{version}/questions/{id}/answers/": {
+      "get": {
+        "operationId": "questions_answers_list",
+        "summary": "Question answers list with pagination",
+        "tags": [
+          "api"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "description": "API version: \"v1\" or \"v2\"",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "id",
+            "description": "Question id",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "page",
+            "description": "A page number within the paginated result set.",
+            "in": "query",
+            "type": "integer",
+            "required": false
+          }
+        ],
+        "description": "Question answers list with pagination. JWT token should be provided with request.",
+        "responses": {
+          "200": {
+            "description": "Successful request"
+          },
+          "401": {
+            "description": "Wrong JWT provided, update your token"
+          },
+          "404": {
+            "description": "Question not found, check question id"
+          }
+        }
+      }
+    },
+    "/api/{version}/search/": {
+      "get": {
+        "operationId": "search_list",
+        "summary": "Search question.",
+        "tags": [
+          "api"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "description": "API version: \"v1\" or \"v2\"",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "q",
+            "description": "Search query",
+            "in": "query",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "page",
+            "description": "A page number within the paginated result set.",
+            "in": "query",
+            "type": "integer",
+            "required": false
+          }
+        ],
+        "description": "Search question, uses GET parameter \"q\" for searching. JWT token should be provided with request.",
+        "responses": {
+          "200": {
+            "description": "Successful request"
+          },
+          "401": {
+            "description": "Wrong JWT provided, update your token"
+          }
+        }
+      }
+    },
+    "/api/{version}/trending/": {
+      "get": {
+        "operationId": "trending_list",
+        "summary": "Ten most popular questions",
+        "tags": [
+          "api"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "description": "API version: \"v1\" or \"v2\"",
+            "in": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "page",
+            "description": "A page number within the paginated result set.",
+            "in": "query",
+            "type": "integer",
+            "required": false
+          }
+        ],
+        "description": "Ten questions sorted by votes with pagination. JWT token should be provided with request.",
+        "responses": {
+          "200": {
+            "description": "Successful request"
+          },
+          "401": {
+            "description": "Wrong JWT provided, update your token"
+          }
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "basic": {
+      "type": "basic"
+    }
+  }
+};
+
+
+  </script>
+  <script src="/static/rest_framework_swagger/bundles/vendors.bundle.js"></script>
+  <script src="/static/rest_framework_swagger/bundles/app.bundle.js"></script>
+  
+  
+  
+</body>
+
+</html>

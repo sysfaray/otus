@@ -1,0 +1,173 @@
+swagger: '2.0'
+info:
+  title: Hasker API
+  description: ''
+  version: ''
+host: test.daiteco.ru
+schemes:
+  - http
+paths:
+  '/api/token-auth/':
+    post:
+      operationId: token-auth_create
+      summary: API View that receives a POST with a user's username and password.
+      tags:
+        - api
+      consumes:
+        - application/json
+      parameters:
+        - name: data
+          in: body
+          schema:
+            type: object
+            required:
+              - username
+              - password
+            properties:
+              username:
+                description: ''
+                type: string
+              password:
+                description: ''
+                type: string
+      description: |-
+        API View that receives a POST with a user's username and password.
+
+        Returns a JSON Web Token that can be used for authenticated requests.
+      responses:
+        '200':
+          description: 'Authorization passed'
+        '400':
+          description: 'Wrong credentials provided'
+  '/api/{version}/index/':
+    get:
+      operationId: index_list
+      summary: List of questions with pagination
+      tags:
+        - api
+      parameters:
+        - name: version
+          description: 'API version: "v1" or "v2"'
+          in: path
+          type: string
+          required: true
+        - name: page
+          description: A page number within the paginated result set.
+          in: query
+          type: integer
+          required: false
+      description: Shows list of 10 questions with basic details and pagination. JWT token should be provided with request.
+      responses:
+        '200':
+          description: 'Successful request'
+        '401':
+          description: 'Wrong JWT provided, update your token'
+  '/api/{version}/questions/{id}/':
+    get:
+      operationId: questions_read
+      summary: Question details
+      tags:
+        - api
+      parameters:
+        - name: version
+          description: 'API version: "v1" or "v2"'
+          in: path
+          type: string
+          required: true
+        - name: id
+          description: 'Question id'
+          in: path
+          type: integer
+          required: true  
+      description: Full question details. JWT token should be provided with request.
+      responses:
+        '200':
+          description: 'Successful request'
+        '401':
+          description: 'Wrong JWT provided, update your token'
+        '404':
+          description: 'Question not found, check question id'
+  '/api/{version}/questions/{id}/answers/':
+    get:
+      operationId: questions_answers_list
+      summary: Question answers list with pagination
+      tags:
+        - api
+      parameters:
+        - name: version
+          description: 'API version: "v1" or "v2"'
+          in: path
+          type: string
+          required: true
+        - name: id
+          description: 'Question id'
+          in: path
+          type: string
+          required: true  
+        - name: page
+          description: A page number within the paginated result set.
+          in: query
+          type: integer
+          required: false
+      description: Question answers list with pagination. JWT token should be provided with request.
+      responses:
+        '200':
+          description: 'Successful request'
+        '401':
+          description: 'Wrong JWT provided, update your token'  
+        '404':
+          description: 'Question not found, check question id'  
+  '/api/{version}/search/':
+    get:
+      operationId: search_list
+      summary: Search question.
+      tags:
+        - api
+      parameters:
+        - name: version
+          description: 'API version: "v1" or "v2"'
+          in: path
+          type: string
+          required: true
+        - name: q
+          description: 'Search query'
+          in: query
+          type: string
+          required: true  
+        - name: page
+          description: A page number within the paginated result set.
+          in: query
+          type: integer
+          required: false
+      description: Search question, uses GET parameter "q" for searching. JWT token should be provided with request. 
+      responses:
+        '200':
+          description: 'Successful request'
+        '401':
+          description: 'Wrong JWT provided, update your token'  
+  '/api/{version}/trending/':
+    get:
+      operationId: trending_list
+      summary: Ten most popular questions
+      tags:
+        - api
+      parameters:
+        - name: version
+          description: 'API version: "v1" or "v2"'
+          in: path
+          type: string
+          required: true
+        - name: page
+          description: A page number within the paginated result set.
+          in: query
+          type: integer
+          required: false
+      description: 'Ten questions sorted by votes with pagination. JWT token should be provided with request.'
+      responses:
+        '200':
+          description: 'Successful request'
+        '401':
+          description: 'Wrong JWT provided, update your token'  
+securityDefinitions:
+  basic:
+    type: basic
