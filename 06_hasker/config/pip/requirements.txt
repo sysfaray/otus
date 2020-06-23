@@ -1,7 +1,7 @@
-django
-uwsgi
-psycopg2
-djangorestframework
-djangorestframework-jwt
-django-rest-swagger
-pillow
+django==3.0.7
+uwsgi==2.0.19.1
+psycopg2==2.8.5
+djangorestframework==3.11.0
+djangorestframework-jwt==1.11.0
+django-rest-swagger==2.2.0
+pillow==7.1.2

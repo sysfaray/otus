@@ -25,7 +25,7 @@
                                         {% endfor %}
                                     </div>
                          <div class="sign">
-                              <div class="avatar" style="background-image:url('/media/{{ question.author_avatar }}');background-size:cover;background-repeat:no-repeat;background-position:center center;')"></div>
+                              <div class="avatar" style="background-image:url('{{ MEDIA_URL }}{{ question.author_avatar }}');background-size:cover;background-repeat:no-repeat;background-position:center center;')"></div>
                               <div class="author">{{ question.author_name }}</div>
                               <div class="date">{{ question.pub_date }}</div>
                          </div>
@@ -54,7 +54,7 @@
                             <div class="wrap">
                                 <div class="cnt">{{ answer.content }}</div>
                                 <div class="sign">
-                                    <div class="avatar" style="background-image:url('/media/{{ answer.author_avatar }}');background-size:cover;background-repeat:no-repeat;background-position:center center;')"></div>
+                                    <div class="avatar" style="background-image:url('{{ MEDIA_URL }}{{ answer.author_avatar }}');background-size:cover;background-repeat:no-repeat;background-position:center center;')"></div>
                                     <div class="author">{{ answer.author_name }}</div>
                                     <div class="date">{{ answer.pub_date }}</div>
                                 </div>

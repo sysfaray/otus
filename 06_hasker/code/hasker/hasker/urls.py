@@ -16,29 +16,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, re_path
 from django.conf.urls import url, include
-from django.contrib.auth import views as auth_views
-
-from user.views import SignupView, SignupDoneView, UserSettingsView
-from question.models import Trend
-from question.views import IndexView, AskView, QuestionView, QuestionListView, VoteView, BestAnswerView, SearchView, TagView
-
 
 urlpatterns = [
-    path('login/', auth_views.LoginView.as_view(
-        extra_context={"trends": Trend.get_trends()}
-    )),
-    path('logout/', auth_views.LogoutView.as_view()),
-    path('signup/', SignupView.as_view()),
-    path('signup/done/', SignupDoneView.as_view()),
-    path('settings/', UserSettingsView.as_view()),
-    path('ask/', AskView.as_view()),
-    path('question/<int:id>/', QuestionView.as_view(), name="question"),
-    path('question/vote/', VoteView.as_view(), name="question_vote"),
-    path('question/best/', BestAnswerView.as_view(), name="question_best"),
-    path('question/list/', QuestionListView.as_view(), name="question_vote"),
-    path('search/', SearchView.as_view(), name="question_search"),
-    path('tag/<str:tag>/', TagView.as_view(), name="question_tag"),
     path('admin/', admin.site.urls),
-    url(r'^api/', include(('api.urls', 'api'), namespace='api')),
-    path('', IndexView.as_view()),
+    url(r'^', include('user.urls', namespace='user')),
+    url(r'^', include('question.urls', namespace='question')),
+    url(r'^api/', include(('api.urls', 'api'), namespace='api'))
 ]

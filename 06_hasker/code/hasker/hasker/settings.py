@@ -37,11 +37,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'question',
-    'user',
-    'api',
+
     'rest_framework',
     'rest_framework_swagger',
+
+    'api',
+    'question',
+    'user'
 ]
 
 AUTH_USER_MODEL = 'user.User'
@@ -71,6 +73,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.media'
             ],
         },
     },

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
-from django.views.generic import View
+from django.views.generic import TemplateView
 from django.views.generic.list import MultipleObjectMixin
 from django.db import transaction
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
@@ -12,10 +12,7 @@ from question.models import Question, Tag, Trend, Answer, AnswerVote, QuestionVo
 from .forms import AskForm, AnswerForm
 
 
-
-# Create your views here.
-
-class IndexView(View):
+class IndexView(TemplateView):
 
     def get(self, request):
         quest_list = Question.objects.order_by('-pub_date')
@@ -30,7 +27,7 @@ class IndexView(View):
         })
 
 
-class AskView(LoginRequiredMixin, View):
+class AskView(LoginRequiredMixin, TemplateView):
 
     def get(self, request):
         form = AskForm()
@@ -53,7 +50,7 @@ class AskView(LoginRequiredMixin, View):
             })
 
 
-class QuestionView(MultipleObjectMixin, View):
+class QuestionView(MultipleObjectMixin, TemplateView):
 
     def get(self, request, id):
         form = AnswerForm()
@@ -91,7 +88,7 @@ class QuestionView(MultipleObjectMixin, View):
                 })
 
 
-class VoteView(LoginRequiredMixin, View):
+class VoteView(LoginRequiredMixin, TemplateView):
 
     def get(self, request):
         type =  request.GET.get('type')
@@ -114,7 +111,7 @@ class VoteView(LoginRequiredMixin, View):
         })
 
 
-class BestAnswerView(LoginRequiredMixin, View):
+class BestAnswerView(LoginRequiredMixin, TemplateView):
 
     def get(self, request):
         answer_id = int(request.GET.get('id'))
@@ -129,7 +126,7 @@ class BestAnswerView(LoginRequiredMixin, View):
         })
 
 
-class SearchView(View):
+class SearchView(TemplateView):
 
     def get(self, request):
         query = request.GET.get('q')
@@ -145,7 +142,7 @@ class SearchView(View):
         })
 
 
-class TagView(View):
+class TagView(TemplateView):
 
     def get(self, request, tag):
         tag = str(tag).strip()
@@ -169,7 +166,7 @@ class TagView(View):
         })
 
 
-class QuestionListView(View):
+class QuestionListView(TemplateView):
 
     def get(self, request):
         page = request.GET.get('page')

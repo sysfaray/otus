@@ -4,8 +4,6 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.conf import settings
 
-# Create your models here.
-
 class Question(models.Model):
     heading = models.CharField(max_length=255)
     content = models.TextField()
@@ -50,14 +48,12 @@ class Question(models.Model):
         self.save()
 
     def recount_answers(self):
-        self.answers = Answer.objects.filter(question_ref=self).count()
-        if self.answers == None:
-            self.answers = 0
+        self.answers = Answer.objects.filter(question_ref=self).count() or 0
         self.save()
 
     def active_vote(self, user_id):
-        if QuestionVote.objects.filter(reference=self, author=user_id).exists():
-            existing_vote = QuestionVote.objects.get(reference=self, author=user_id)
+        existing_vote = QuestionVote.objects.filter(reference=self, author=user_id).first()
+        if existing_vote:
             return existing_vote.value
 
     @staticmethod
@@ -70,11 +66,7 @@ class Question(models.Model):
             new_question.save()
             for tag in cleaned_data['tags_list']:
                 tag = tag.strip()
-                if Tag.objects.filter(name=tag).exists():
-                    new_tag = Tag.objects.get(name=tag)
-                else:
-                    new_tag = Tag(name=tag)
-                    new_tag.save()
+                new_tag, created = Tag.objects.get_or_create(name=tag)
                 new_question.tags.add(new_tag)
         return new_question.id
 

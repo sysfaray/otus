@@ -3,18 +3,14 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.db import transaction
 from django.contrib.auth.hashers import make_password
-from django.views.generic import View
+from django.views.generic import View, UpdateView, FormView, CreateView
 
 from user.models import User
 from utils.mailsender import MailSender
 from user.forms import SignupForm, UserForm
 from question.models import Trend
 
-
-
-# Create your views here.
-
-class SignupView(View):
+class SignupView(CreateView):
 
     def get(self, request):
         form = SignupForm()
@@ -30,16 +26,15 @@ class SignupView(View):
             # Creating user and profile
             try:
                 with transaction.atomic():
-                    new_user = User(
+                    new_user = User.objects.create(
                                     username=form.cleaned_data['login'],
                                     password=make_password(form.cleaned_data['password']),
                                     email=form.cleaned_data['email'],
                                     avatar=form.cleaned_data['avatar'],
                                     reg_date=datetime.datetime.now()
                                     )
-                    new_user.save()
-
-                MailSender().send(new_user.email, 'sign_up', context={"login": new_user.username})
+                    if new_user:
+                        MailSender().send(new_user.email, 'sign_up', context={"login": new_user.username})
                 return HttpResponseRedirect('/signup/done/')
             except Exception as error:
                 message = 'Error while adding new user: ' + str(error) + str(form.cleaned_data)
@@ -53,7 +48,7 @@ class SignupView(View):
         })
 
 
-class SignupDoneView(View):
+class SignupDoneView(FormView):
 
     def get(self, request):
         return render(request, "index/signup_done.html", {
@@ -61,7 +56,7 @@ class SignupDoneView(View):
         })
 
 
-class UserSettingsView(View):
+class UserSettingsView(UpdateView):
 
     def get(self, request):
         return render(request, "index/settings.html", {

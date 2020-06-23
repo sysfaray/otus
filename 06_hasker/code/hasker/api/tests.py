@@ -7,8 +7,6 @@ from rest_framework import status
 from user.models import User
 from question.models import Question, Answer
 
-# Create your tests here.
-
 class ApiIndexTestCase(TestCase):
 
     def setUp(self):
