@@ -33,6 +33,6 @@ Django, система вопросов и ответов
 
 Документация к API
 
-    http://ip:8080/api/docs/
+    http://ip/api/docs/
 
 Swagger-схема находится в файле swagger.yaml
