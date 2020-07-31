@@ -1,0 +1,15 @@
+.content, .sidebar { 
+padding: 10px; /* Поля */
+border: solid 1px #000; /* Параметры рамки */
+background: #e3e8cc; /* Цвет фона */
+}
+#content {
+  float:left;
+  width:75%;
+  background:#eee;
+}
+#sidebar {
+  float:left;
+  width:25%;
+  background:#bcbcbc;
+}

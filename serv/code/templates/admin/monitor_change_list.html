@@ -1,0 +1,6 @@
+{% extends 'admin/change_list.html' %}
+{% block object-tools %}
+    {% csrf_token %}
+        <a href="import/"><input type="submit" value="Импорт" /></a>
+    {{ block.super }}
+{% endblock %}

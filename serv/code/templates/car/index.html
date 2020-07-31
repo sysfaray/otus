@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<link rel="stylesheet" type="text/css" href="{% static 'js/bootstrap/css/bootstrap.min.css' %}"/>
+<link rel="stylesheet" type="text/css" href="{% static 'css/car/list.css' %}"/>
+<link rel="stylesheet" type="text/css" href="{% static 'css/car/switch.css' %}"/>
+
+{% if user.is_authenticated %}
+<div id="sidebar">
+    <div class="container mt-5 mb-5">
+        <label for="">Марка:</label>
+            <select class="form-control brand selectFilter" name="brand" id="brand" >
+                <option value=''>Марка</option>
+                {% for brand in result %}
+                    <option data-ref="{{ brand }}">{{ brand }}</option>
+                {% endfor %}
+            </select>
+        <label for="">Модель:</label>
+            <select class="form-control model selectFilter" name="model" id="model" >
+            </select>
+        <label for="">Двигатель:</label>
+            <select class="form-control fuel selectFilter" name="fuel" id="fuel" >
+            </select>
+        <label for="">Объем:</label>
+            <select class="form-control capacity selectFilter" name="capacity" id="capacity" >
+            </select>
+        <label for="">Год:</label>
+            <select class="form-control year selectFilter" name="year" id="year" >
+            </select>
+        <button class="mt-2" id="button2" type="button">Запчасти на складе</button>
+        <br>
+        <label for="">Раздел:</label>
+            <select class="form-control type_work selectFilter" name="type_work" id="type_work" >
+            </select>
+        <label for="">Работы:</label>
+            <select class="form-control works selectFilter" name="works" id="works" >
+            </select>
+        <div align="row" >
+          <label class="switch mt-2">
+                <input type="checkbox" id="checkbox1">
+                  <div class="slider round">
+                    <span class="off">Оригинал</span>
+                    <span class="on">Аналог</span>
+                  </div>
+              </label>
+        </div>
+        <!-- <button id="button" type="button">Поиск</button> -->
+
+    </div>
+</div>
+
+<div id="content">
+    <div id="result">
+
+    </div>
+</div>
+{% endif %}
+
+<script src="/static/js/index.js" type="text/javascript"></script>
+{% endblock content %}
