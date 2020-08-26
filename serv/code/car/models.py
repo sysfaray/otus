@@ -29,7 +29,7 @@ class Car(models.Model):
             models.Index(fields=["id", "model"]),
         ]
 
-    model = models.ForeignKey(BrandModel, on_delete=models.PROTECT)
+    model = models.ForeignKey(BrandModel, on_delete=models.CASCADE)
     fuel = models.CharField(
         max_length=16,
         choices=[("Petrol", "Petrol"), ("Diesel", "Diesel")],

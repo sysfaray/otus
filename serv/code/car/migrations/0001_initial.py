@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                 ('end_year', models.IntegerField(blank=True, default=0, validators=[django.core.validators.MinValueValidator(2000), django.core.validators.MaxValueValidator(2020)])),
                 ('now', models.BooleanField(default=True)),
                 ('active', models.BooleanField(default=True)),
-                ('model', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='brand.BrandModel')),
+                ('model', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='brand.BrandModel')),
             ],
             options={
                 'ordering': ['model__name'],

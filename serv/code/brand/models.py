@@ -18,7 +18,7 @@ class Brand(models.Model):
 
 class BrandModel(models.Model):
     name = models.CharField(max_length=200, null=True, blank=True, unique=True)
-    brand = models.ForeignKey(Brand, on_delete=models.PROTECT)
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
 
     def __str__(self):

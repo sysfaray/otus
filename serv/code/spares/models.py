@@ -42,7 +42,7 @@ class Spares(models.Model):
             models.Index(fields=["id", "name", "part_number"]),
         ]
 
-    name = models.ForeignKey(SparesName, on_delete=models.PROTECT)
+    name = models.ForeignKey(SparesName, on_delete=models.CASCADE)
     part_number = models.CharField(max_length=200, unique=True)
     model = models.ManyToManyField(Car, blank=True)
     cost = models.IntegerField(default=0)
@@ -69,7 +69,7 @@ class SparesAnalog(models.Model):
             models.Index(fields=["id", "name", "part_number"]),
         ]
 
-    name = models.ForeignKey(SparesName, on_delete=models.PROTECT)
+    name = models.ForeignKey(SparesName, on_delete=models.CASCADE)
     part_number = models.CharField(max_length=200, unique=True)
     model = models.ManyToManyField(Car, blank=True)
     cost = models.IntegerField(default=0)

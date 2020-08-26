@@ -47,7 +47,7 @@ class Work(models.Model):
     work_ratio = models.FloatField(default=1)
     original = models.ManyToManyField(Spares, through="SparesOriginalCount")
     analog = models.ManyToManyField(SparesAnalog, through="SparesAnalogCount")
-    type_work = models.ForeignKey(TypeWork, on_delete=models.PROTECT)
+    type_work = models.ForeignKey(TypeWork, on_delete=models.CASCADE)
     cars = models.ManyToManyField(Car, blank=True)
     active = models.BooleanField(default=True)
 
